@@ -1,0 +1,26 @@
+# Engine — Maven
+target/
+*.class
+*.jar
+*.war
+hs_err_pid*.log
+replay_pid*.log
+
+# Widget — Node / Vite
+widget/node_modules/
+widget/dist/
+widget/.vite/
+
+# Local config
+.env
+.env.local
+application-local.yml
+
+# Reference docs that contain credentials or vendor-private materials
+reference-docs/Fonepay_Intent/
+
+# Editors / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store

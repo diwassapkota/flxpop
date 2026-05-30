@@ -1,0 +1,22 @@
+spring:
+  datasource:
+    # Tests use a dedicated `flexpop_test` schema on your local MySQL so they
+    # never touch the dev `flexpop` data. Override via env vars:
+    #   DB_HOST, DB_PORT, TEST_DB_NAME, DB_USER, DB_PASSWORD
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${TEST_DB_NAME:flexpop_test}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+
+# Don't let the scheduled outbound worker fire during tests — we exercise the
+# logic directly via the integration tests instead.
+flexpop:
+  webhook:
+    poll-interval-ms: 86400000
+
+logging:
+  level:
+    com.flexpop: INFO
+    com.zaxxer.hikari: WARN

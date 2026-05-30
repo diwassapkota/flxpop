@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Acme Air — Checkout (FlexPop demo)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --ink: #0F1B2D; --muted: #54678A; --line: #E1E7F0; --bg-soft: #F8FAFC;
+        --accent: #E0245E; --shadow: 0 1px 2px rgba(15,27,45,.04), 0 6px 24px rgba(15,27,45,.08);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: 'Inter', system-ui, sans-serif;
+        background: var(--bg-soft);
+        color: var(--ink);
+        min-height: 100vh;
+      }
+      .demo-page {
+        max-width: 920px;
+        margin: 0 auto;
+        padding: 40px 24px 80px;
+      }
+      .merchant-brand {
+        font-weight: 700;
+        font-size: 22px;
+        letter-spacing: -0.01em;
+        margin-bottom: 8px;
+      }
+      .merchant-brand .dot { color: var(--accent); }
+      .merchant-tagline {
+        color: var(--muted);
+        font-size: 14px;
+        margin-bottom: 32px;
+      }
+      .demo-grid {
+        display: grid;
+        grid-template-columns: 1fr 460px;
+        gap: 32px;
+        align-items: start;
+      }
+      @media (max-width: 800px) {
+        .demo-grid { grid-template-columns: 1fr; }
+      }
+      .panel {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 28px;
+        box-shadow: var(--shadow);
+      }
+      .panel h2 {
+        margin: 0 0 8px;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .panel p {
+        margin: 0 0 18px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .order-line {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 14px;
+      }
+      .order-line:last-child { border-bottom: 0; }
+      .order-line strong { font-weight: 600; }
+      .order-total {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+        padding-top: 16px;
+        border-top: 1.5px solid var(--ink);
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .step-label {
+        font-family: 'IBM Plex Mono', ui-monospace, monospace;
+        font-size: 11px;
+        letter-spacing: 0.16em;
+        color: var(--muted);
+        text-transform: uppercase;
+        margin-bottom: 6px;
+      }
+      textarea {
+        width: 100%;
+        min-height: 140px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font: 12px/1.5 ui-monospace, monospace;
+        resize: vertical;
+      }
+      button.boot {
+        margin-top: 12px;
+        padding: 12px 18px;
+        border-radius: 10px;
+        background: var(--accent);
+        color: white;
+        border: 0;
+        font: 600 14px/1 'Inter', system-ui;
+        cursor: pointer;
+      }
+      .events {
+        margin-top: 18px;
+        padding: 12px;
+        background: #F1F5F9;
+        border-radius: 8px;
+        font: 12px/1.5 ui-monospace, monospace;
+        max-height: 180px;
+        overflow: auto;
+      }
+      .events:empty::before {
+        content: 'No widget events yet';
+        color: var(--muted);
+      }
+      .checkout-widget {
+        background: white;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        min-height: 560px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="demo-page">
+      <div class="merchant-brand">Acme Air<span class="dot">.</span></div>
+      <div class="merchant-tagline">Kathmandu → Dubai · Departure Aug 12 · 1 passenger</div>
+
+      <div class="demo-grid">
+        <div>
+          <div class="panel" style="margin-bottom: 16px;">
+            <h2>Order summary</h2>
+            <div class="order-line"><span>Fare (1 adult)</span><strong>NPR 24,500.00</strong></div>
+            <div class="order-line"><span>Taxes &amp; fees</span><strong>NPR 4,800.00</strong></div>
+            <div class="order-line"><span>Baggage (1× 23kg)</span><strong>NPR 1,200.00</strong></div>
+            <div class="order-total"><span>Total</span><span>NPR 30,500.00</span></div>
+          </div>
+
+          <div class="panel">
+            <h2>Boot the widget</h2>
+            <p>
+              In production your server calls <code>POST /v1/sessions</code> with your <code>sk_*</code> key,
+              then passes the response (and a <code>pk_*</code>) into <code>FlexPop.mount(...)</code>.
+              For this demo, paste a session payload below and click <em>Boot</em>.
+            </p>
+            <div class="step-label">SessionResponse JSON · leave empty to auto-create</div>
+            <textarea id="session-json" placeholder="Leave empty and click Boot — the demo will hit POST /v1/sessions for you. Or paste a SessionResponse from curl."></textarea>
+            <button class="boot" id="boot-btn">Boot widget</button>
+            <div class="step-label" style="margin-top: 20px;">Widget events</div>
+            <div class="events" id="events-log"></div>
+          </div>
+        </div>
+
+        <div class="checkout-widget" id="checkout"></div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/demo.tsx"></script>
+  </body>
+</html>
