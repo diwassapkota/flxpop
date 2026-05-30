@@ -108,8 +108,9 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        request.setAttribute(AuthAttributes.MERCHANT, merchant);
-        request.setAttribute(AuthAttributes.API_KEY_ID, key.getId());
+        request.setAttribute(AuthAttributes.MERCHANT,     merchant);
+        request.setAttribute(AuthAttributes.API_KEY_ID,   key.getId());
+        request.setAttribute(AuthAttributes.API_KEY_KIND, key.getKind());
 
         touchService.touchAsync(key.getId());
 

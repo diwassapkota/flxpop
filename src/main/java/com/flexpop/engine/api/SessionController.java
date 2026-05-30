@@ -2,6 +2,7 @@ package com.flexpop.engine.api;
 
 import com.flexpop.engine.api.dto.SessionCreateRequest;
 import com.flexpop.engine.api.dto.SessionResponse;
+import com.flexpop.engine.auth.RequiresSecretKey;
 import com.flexpop.engine.service.SessionService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -23,6 +24,7 @@ public class SessionController {
     }
 
     @PostMapping
+    @RequiresSecretKey
     public ResponseEntity<SessionResponse> create(@Valid @RequestBody SessionCreateRequest req,
                                                   HttpServletRequest http) {
         SessionResponse body = service.create(req, http);

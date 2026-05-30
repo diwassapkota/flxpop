@@ -41,6 +41,8 @@ public abstract class AbstractIntegrationTest {
 
     /** Known dev secret seeded by V2__seed_dev_api_key.sql */
     public static final String DEV_KEY = "sk_dev_local_FLEXPOPDEVKEY1234567890";
+    /** Known dev publishable key seeded by V4__seed_dev_publishable_key.sql */
+    public static final String DEV_PK  = "pk_dev_local_FLEXPOPPUBLICKEY1234567890";
     public static final String DEV_FONEPAY_WEBHOOK_SECRET = "dev-fonepay-webhook-secret";
 
     protected static final WireMockServer FONEPAY_MOCK;

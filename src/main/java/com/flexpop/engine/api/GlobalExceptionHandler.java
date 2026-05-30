@@ -2,6 +2,7 @@ package com.flexpop.engine.api;
 
 import com.flexpop.engine.service.exception.BadGatewayException;
 import com.flexpop.engine.service.exception.BadRequestException;
+import com.flexpop.engine.service.exception.ForbiddenException;
 import com.flexpop.engine.service.exception.IdempotencyConflictException;
 import com.flexpop.engine.service.exception.NotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -57,6 +58,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, Object>> notFound(NotFoundException ex,
                                                         HttpServletRequest req) {
         return body(HttpStatus.NOT_FOUND, "not_found", ex.getMessage(), req);
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<Map<String, Object>> forbidden(ForbiddenException ex,
+                                                         HttpServletRequest req) {
+        return body(HttpStatus.FORBIDDEN, "forbidden", ex.getMessage(), req);
     }
 
     @ExceptionHandler(BadGatewayException.class)

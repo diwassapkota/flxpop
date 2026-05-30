@@ -2,6 +2,7 @@ package com.flexpop.engine.api;
 
 import com.flexpop.engine.api.dto.RefundCreateRequest;
 import com.flexpop.engine.api.dto.RefundResponse;
+import com.flexpop.engine.auth.RequiresSecretKey;
 import com.flexpop.engine.service.RefundService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -24,6 +25,7 @@ public class RefundController {
     }
 
     @PostMapping
+    @RequiresSecretKey
     public ResponseEntity<RefundResponse> create(
             @PathVariable("txnId") String txnId,
             @Valid @RequestBody RefundCreateRequest req,

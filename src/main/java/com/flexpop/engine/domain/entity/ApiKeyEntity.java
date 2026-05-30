@@ -1,7 +1,10 @@
 package com.flexpop.engine.domain.entity;
 
+import com.flexpop.engine.domain.ApiKeyKind;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -27,8 +30,9 @@ public class ApiKeyEntity {
     @Column(name = "key_hash", nullable = false, length = 64, updatable = false, unique = true)
     private String keyHash;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16, updatable = false)
-    private String kind;
+    private ApiKeyKind kind;
 
     @Column(length = 120)
     private String label;
@@ -47,7 +51,7 @@ public class ApiKeyEntity {
     public Long getMerchantId() { return merchantId; }
     public String getKeyPrefix() { return keyPrefix; }
     public String getKeyHash() { return keyHash; }
-    public String getKind() { return kind; }
+    public ApiKeyKind getKind() { return kind; }
     public String getLabel() { return label; }
     public Instant getLastUsedAt() { return lastUsedAt; }
     public void setLastUsedAt(Instant lastUsedAt) { this.lastUsedAt = lastUsedAt; }
