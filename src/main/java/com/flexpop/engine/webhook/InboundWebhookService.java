@@ -2,6 +2,7 @@ package com.flexpop.engine.webhook;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.flexpop.engine.adapter.GatewayAdapter;
 import com.flexpop.engine.domain.Gateway;
 import com.flexpop.engine.domain.PublicIdGenerator;
 import com.flexpop.engine.domain.RefundStatus;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -135,6 +137,50 @@ public class InboundWebhookService {
 
         eventLog.append(txn.getId(), type, TransactionEventLog.Source.GATEWAY, body);
         enqueueOutboundForMerchant(txn, type, body);
+    }
+
+    /**
+     * Synthetic-webhook path used by {@code FonepayStatusPoller} (and any future
+     * pull-based gateway integration). Same state-transition + event-append +
+     * outbound-enqueue logic as the HMAC-verified path, but tagged
+     * {@link TransactionEventLog.Source#SYSTEM} so the audit trail shows
+     * "polled" not "pushed by gateway".
+     *
+     * <p>No-op if {@link GatewayAdapter.StatusResult#status()} is non-terminal —
+     * the poller keeps the txn in ROUTED/PENDING and tries again next tick.
+     */
+    @Transactional
+    public void processSynthetic(TransactionEntity txn, GatewayAdapter.StatusResult statusResult) {
+        TxnStatus newStatus;
+        String eventType;
+        switch (statusResult.status()) {
+            case "SETTLED" -> { newStatus = TxnStatus.SETTLED; eventType = "payment.settled"; }
+            case "FAILED"  -> { newStatus = TxnStatus.FAILED;  eventType = "payment.failed";  }
+            case "EXPIRED" -> { newStatus = TxnStatus.EXPIRED; eventType = "payment.expired"; }
+            default -> {
+                // PENDING / unknown — caller will retry on the next tick.
+                return;
+            }
+        }
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("type",        eventType);
+        body.put("source",      "polled");
+        body.put("txn_id",      txn.getPublicId());
+        body.put("gateway_ref", txn.getGatewayRef());
+        if (statusResult.failureCode() != null)    body.put("failure_code",    statusResult.failureCode());
+        if (statusResult.failureMessage() != null) body.put("failure_message", statusResult.failureMessage());
+
+        if (txn.getStatus().isTerminal() && newStatus != txn.getStatus()) {
+            log.warn("ignoring late synthetic transition for {}: {} → {}",
+                    txn.getPublicId(), txn.getStatus(), newStatus);
+            return;
+        }
+        applyTxnStatus(txn, newStatus, body);
+        txnRepo.save(txn);
+
+        eventLog.append(txn.getId(), eventType, TransactionEventLog.Source.SYSTEM, body);
+        enqueueOutboundForMerchant(txn, eventType, body);
     }
 
     private void handleRefundEvent(Gateway gateway, String type, Map<String, Object> body,

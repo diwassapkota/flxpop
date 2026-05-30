@@ -3,8 +3,10 @@ package com.flexpop.engine.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.flexpop.engine.adapter.GatewayAdapter;
 import com.flexpop.engine.adapter.GatewayAdapterRegistry;
+import com.flexpop.engine.adapter.fonepay.FonepayBankCatalog;
 import com.flexpop.engine.api.dto.TransactionCreateRequest;
 import com.flexpop.engine.api.dto.TransactionResponse;
+import com.flexpop.engine.domain.Device;
 import com.flexpop.engine.domain.Gateway;
 import com.flexpop.engine.domain.Money;
 import com.flexpop.engine.domain.PublicIdGenerator;
@@ -22,6 +24,8 @@ import com.flexpop.engine.service.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -38,6 +42,7 @@ public class TransactionService {
     private final IdempotencyService idempotency;
     private final MerchantContext merchantContext;
     private final ObjectMapper mapper;
+    private final FonepayBankCatalog fonepayBankCatalog;
 
     public TransactionService(TransactionRepository txnRepo,
                               CheckoutSessionRepository sessionRepo,
@@ -46,7 +51,8 @@ public class TransactionService {
                               TransactionEventLog eventLog,
                               IdempotencyService idempotency,
                               MerchantContext merchantContext,
-                              ObjectMapper mapper) {
+                              ObjectMapper mapper,
+                              FonepayBankCatalog fonepayBankCatalog) {
         this.txnRepo = txnRepo;
         this.sessionRepo = sessionRepo;
         this.refundRepo = refundRepo;
@@ -55,6 +61,7 @@ public class TransactionService {
         this.idempotency = idempotency;
         this.merchantContext = merchantContext;
         this.mapper = mapper;
+        this.fonepayBankCatalog = fonepayBankCatalog;
     }
 
     public TransactionOutcome create(TransactionCreateRequest req, String idempotencyKey) {
@@ -197,6 +204,8 @@ public class TransactionService {
                         r.getCreatedAt()))
                 .toList();
 
+        List<TransactionResponse.BankIntent> intents = buildIntents(t);
+
         return new TransactionResponse(
                 t.getPublicId(),
                 t.getAmountMinor(),
@@ -213,11 +222,41 @@ public class TransactionService {
                 t.getSettledAt(),
                 t.getFailureCode(),
                 t.getFailureMessage(),
+                intents,
                 rf,
                 evt,
                 t.getCreatedAt(),
                 t.getUpdatedAt()
         );
+    }
+
+    /**
+     * For mobile-device Fonepay transactions: assemble a per-bank deep-link list
+     * from the cached bank catalog and the transaction's qrPayload.
+     *
+     * <ul>
+     *   <li>Returns {@code null} (omitted from JSON) for desktop, non-Fonepay,
+     *       transactions with no qrPayload, or transactions in terminal state
+     *       — the widget should not be redirecting users into a bank app once
+     *       the txn has settled or failed.</li>
+     *   <li>Returns an empty list if the bank catalog hasn't been populated
+     *       (e.g. /banks/list call failed) — the widget gracefully degrades
+     *       to its QR fallback in that case.</li>
+     * </ul>
+     */
+    private List<TransactionResponse.BankIntent> buildIntents(TransactionEntity t) {
+        if (t.getDevice() != Device.MOBILE) return null;
+        if (t.getGateway() != Gateway.FONEPAY) return null;
+        if (t.getQrPayload() == null || t.getQrPayload().isBlank()) return null;
+        if (t.getStatus().isTerminal()) return null;
+
+        String encodedPayload = URLEncoder.encode(t.getQrPayload(), StandardCharsets.UTF_8);
+        return fonepayBankCatalog.banks().stream()
+                .map(b -> new TransactionResponse.BankIntent(
+                        b.name(),
+                        b.packageName(),
+                        b.intentScheme() + "://payment/?qrPayload=" + encodedPayload))
+                .toList();
     }
 
     public record TransactionOutcome(TransactionResponse body, boolean replayed) { }

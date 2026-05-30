@@ -8,6 +8,17 @@ spring:
       minimum-idle: 2
       pool-name: flexpop-hikari
 
+flexpop:
+  gateways:
+    fonepay:
+      terminal-id: ${FONEPAY_TERMINAL_ID:STUB-TERMINAL-ID}
+      login-username: ${FONEPAY_USERNAME:STUB-USERNAME-CONFIGURE-ME}
+      login-password: ${FONEPAY_PASSWORD:STUB-PASSWORD-CONFIGURE-ME}
+      private-key-base64-pkcs8: ${FONEPAY_PRIVATE_KEY_B64:}
+      base-url: ${FONEPAY_BASE_URL:https://dev-external-gateway-new.fonepay.com/merchantThirdparty}
+      webhook-secret: ${FONEPAY_WEBHOOK_SECRET:dev-fonepay-webhook-secret}
+      poll-interval-ms: ${FONEPAY_POLL_INTERVAL_MS:5000}
+
 logging:
   level:
     com.flexpop: DEBUG

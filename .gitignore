@@ -24,3 +24,4 @@ reference-docs/Fonepay_Intent/
 *.iml
 .vscode/
 .DS_Store
+widget/tsconfig.tsbuildinfo

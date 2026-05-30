@@ -1,0 +1,101 @@
+package com.flexpop.engine.adapter.fonepay.dev;
+
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Profile;
+import org.springframework.stereotype.Component;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+
+/**
+ * In-process Fonepay sandbox simulator for local demos. Activate with the
+ * Spring profile {@code dev-fonepay-mock} — companion {@code application-dev-fonepay-mock.yml}
+ * overrides {@code flexpop.gateways.fonepay.base-url} to point here.
+ *
+ * <p>Once the real sandbox credentials are available, just stop activating
+ * this profile and unset the base-url override; the same engine code calls
+ * the real Fonepay without further changes.
+ *
+ * <h2>Drive a successful payment from the terminal</h2>
+ * <pre>{@code
+ *   # 1) flip status stub to success — the poller picks it up within ~5s
+ *   curl -X POST http://localhost:8089/__admin/mappings -H 'Content-Type: application/json' -d '{
+ *     "priority": 1,
+ *     "request":  {"method":"POST","url":"/api/merchant/third-party/v2/thirdPartyDynamicQrGetStatus"},
+ *     "response": {"status":200,"headers":{"Content-Type":"application/json"},
+ *                   "jsonBody":{"paymentStatus":"success","paymentMessage":"Payment success","fonepayTraceId":99999}}
+ *   }'
+ *
+ *   # 2) reset to default (pending)
+ *   curl -X POST http://localhost:8089/__admin/mappings/reset
+ * }</pre>
+ */
+@Component
+@Profile("dev-fonepay-mock")
+public class DevFonepayMock {
+
+    private static final Logger log = LoggerFactory.getLogger(DevFonepayMock.class);
+    public static final int PORT = 8089;
+
+    private WireMockServer server;
+
+    @PostConstruct
+    public void start() {
+        server = new WireMockServer(WireMockConfiguration.options()
+                .port(PORT)
+                .globalTemplating(true));
+        server.start();
+        installDefaultStubs();
+        log.info("DevFonepayMock active on http://localhost:{}/  (admin: /__admin)", PORT);
+    }
+
+    @PreDestroy
+    public void stop() {
+        if (server != null) server.stop();
+    }
+
+    private void installDefaultStubs() {
+        server.stubFor(post(urlEqualTo("/api/merchant/third-party/v2/login"))
+                .willReturn(okJson("""
+                        {"accessToken":"dev-mock-bearer","tokenType":"Bearer","expiresIn":3600}
+                        """)));
+
+        // A plausible Nepali bank list with real-looking package names and schemes.
+        server.stubFor(get(urlEqualTo("/api/merchant/third-party/v2/banks/list"))
+                .willReturn(okJson("""
+                        {"banks":[
+                          {"name":"NIC Asia Bank","packageName":"com.nicasiabank.smartxapp","intentScheme":"NICASIA"},
+                          {"name":"Nabil Bank","packageName":"com.f1soft.nabilmbanking","intentScheme":"NABILBANK"},
+                          {"name":"Sanima Bank","packageName":"com.sanimabank.SanimaMoBank","intentScheme":"SANIMABANK"},
+                          {"name":"Global IME Bank","packageName":"com.f1soft.global.smartbank","intentScheme":"GLOBALIME"}
+                        ]}
+                        """)));
+
+        // Echo referenceLabel back as PRN so each txn has a distinct gateway_ref
+        // (the engine's poller and webhook handler key on it).
+        server.stubFor(post(urlEqualTo("/api/merchant/third-party/v2/generate-intent-qr"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("""
+                                {"qrString":"00020101021230460016me.fonepay.merchant0108DEV-MOCK0207{{jsonPath request.body '$.referenceLabel'}}5204000053034245405{{jsonPath request.body '$.amount'}}5802NP6304DEMO",
+                                 "prn":"{{jsonPath request.body '$.referenceLabel'}}",
+                                 "terminalId":"{{jsonPath request.body '$.terminalId'}}",
+                                 "status":"Success"}
+                                """)));
+
+        // Default: pending. Flip to success via the admin API (see class javadoc).
+        server.stubFor(post(urlEqualTo("/api/merchant/third-party/v2/thirdPartyDynamicQrGetStatus"))
+                .willReturn(okJson("""
+                        {"paymentStatus":"pending","paymentMessage":"Awaiting payment","fonepayTraceId":0}
+                        """)));
+    }
+}

@@ -32,6 +32,7 @@ public record TransactionResponse(
         @JsonProperty("failure_code") String failureCode,
         @JsonProperty("failure_message") String failureMessage,
 
+        List<BankIntent> intents,
         List<RefundSummary> refunds,
         List<Event> events,
 
@@ -59,5 +60,18 @@ public record TransactionResponse(
             @JsonProperty("failure_message") String failureMessage,
             @JsonProperty("settled_at") Instant settledAt,
             @JsonProperty("created_at") Instant createdAt
+    ) { }
+
+    /**
+     * Mobile-only: one entry per registered bank app. The widget renders a
+     * picker; tapping a row navigates to {@code intent_url}, which the bank's
+     * Android intent resolver / iOS URI handler opens with the qrPayload as
+     * context.
+     */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record BankIntent(
+            @JsonProperty("bank_name") String bankName,
+            @JsonProperty("package_name") String packageName,
+            @JsonProperty("intent_url") String intentUrl
     ) { }
 }

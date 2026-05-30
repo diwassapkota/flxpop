@@ -37,7 +37,14 @@ export interface TransactionResponse {
   settled_at?: string | null;
   failure_code?: string | null;
   failure_message?: string | null;
+  intents?: BankIntent[] | null;
   events: TxnEvent[];
+}
+
+export interface BankIntent {
+  bank_name: string;
+  package_name: string;
+  intent_url: string;
 }
 
 export interface TxnEvent {

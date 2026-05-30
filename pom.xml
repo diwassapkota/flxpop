@@ -21,6 +21,7 @@
     <properties>
         <java.version>21</java.version>
         <testcontainers.version>1.20.4</testcontainers.version>
+        <wiremock.version>3.10.0</wiremock.version>
     </properties>
 
     <dependencies>
@@ -75,6 +76,19 @@
             <artifactId>mysql</artifactId>
             <version>${testcontainers.version}</version>
             <scope>test</scope>
+        </dependency>
+        <!--
+          WireMock is compile-scope (not test-only) because DevFonepayMock uses
+          it under the `dev-fonepay-mock` Spring profile for local demos. The
+          class isn't instantiated unless that profile is active, so prod
+          deployments incur only the JAR-size cost, not runtime cost. A future
+          round can move dev tooling into a separate Maven module so prod
+          artifacts don't ship WireMock at all.
+        -->
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock-standalone</artifactId>
+            <version>${wiremock.version}</version>
         </dependency>
     </dependencies>
 

@@ -1,0 +1,16 @@
+# When the `dev-fonepay-mock` profile is active, override the Fonepay base URL
+# to point at the in-process WireMock started by DevFonepayMock on port 8089.
+# Combine with the `dev` profile:
+#   mvn spring-boot:run -Dspring-boot.run.profiles=dev,dev-fonepay-mock
+flexpop:
+  gateways:
+    fonepay:
+      base-url: http://localhost:8089
+      # Override the placeholder creds. The dev mock accepts any value;
+      # the engine still signs requests, so we need a valid PKCS8 key.
+      # This is a one-time-generated THROWAWAY key — safe to commit because
+      # it isn't registered with real Fonepay.
+      login-username: dev-mock-user
+      login-password: dev-mock-pass
+      terminal-id: DEV-MOCK-TERMINAL
+      private-key-base64-pkcs8: MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDH2Wz0MEy4ziz1F7+WMJNTz9dWqaAETdCdFwwQc7AlgGob27F2r1aU2/2k6ah1ypzqrzb1zsKJ5RqhWAB083NSO0F1f2WfQI0/yz+0B3N1ZNnV3ELQxkOmyeHeqamylRz+zxJaMglcolBHLQdA+JPWQAWxma0lV5dKdpG2DvaFUynhq2zDJsPq7vROLCqxcHgf42YyLfUs/diYAwAJLGHMNxSDulmV+kX1WF6PoTZy69aIu3G0bClZ/DwSOunnX5xixvuavPBxbOgjzUutKEcR+7xo80zjMFXbwz+323z1XRA3Q1kNaTL5zfLEK19FoJuVFS8sfcIJCtL1ubhcxIhPAgMBAAECggEANJZM6jBvb82o3NFj84RSsCInusElvxwuwbdX0FhwyF1zDmOP3fgjY0ZEBwoI7v3iropuft3qKNjlWgFLFXseJEw9XEqqle4pfNjhqWCwi/p+q5yq5D7XfGLxEWM5qSk9mPsqDBvQhNSdJS1/FCSU2jK8jNAwVHwo7kom624ihlA1vO/sP8QB/8ks7s6p8cxY6P6LeaOTTscVxypeuYrrbhIfudEZpMlP9NnnNxKQVr82VgUA03GwtWoOKIkCQ4q6rxYPWQgzBSKHrZe7GSazhTUjmSxxHQi30lQ65id5eg5IkafgYKzz9MlBwQZWr7oKqmpg/NsnIe1E478tz/Cy0QKBgQDq12HEGuBRxAG/cXaWcBk7RXUr28dPbhsHCgxnJnf7G9JjwFnaCXJ/wCoA4Hq1cva6ePQo8HyU3G6qok7bZglvhliS32E6IndXlipLGu20ctw0edzYxVFRikFxr28cOJQFJ4iB4CJaY1I1sH9dVGOfc0DRtWYjY0Kp/9mQz8OP5wKBgQDZ2vPSrEeMRGu4AIk2Ib8clxovHK7tj1jMJbSZNqSXe/uP4fXBttqRZu2rxMSQ7HzVzCAS4vvTJi31ZNSaz5WHo+fg2vRzSy4zXsAh6iDZ96nBK9FJeaE/3EqE4u855TYk0Xa7UdW0LV0TbONl6/FQkCQmfbnQqKfj091t+SBXWQKBgQC4+b+bPOQ142LRDakv48osApDBZBLAwORvDf4o/YcB9q8oPSlI8aoLcCxllmtxIsWuqXkACjTG+D3/D2t3qw6BltuLjIHDzcQc7D4R/HsBaHuEpfxLjlh4FqNnzZyCKRqGWNZQHmBQu+zUN1qLA96YiKqkw/JYq2WmC82uH8hVPwKBgHtpo9Jmsilt4S/dbd1yhJcnqjeiIh6FpCISAhsBb4A5RiseMGBKu8q+6kjyMQCAV7+t4UWRvGLDMCnhsub4TZcHbSZeIzjlEAkd1e3gejfAKzQ5JFhhRM2ud7CL9kVv6Zo15vL6yvtE74M/nhpw7MVcwn3jn03rHSDdNoVEKeQRAoGBAJOvklaEnJkNqeSu0I3sImG4hi7LRTNCjahEh+UO0tggyniIG2b3VnbhnfuBs18oM6tYsERxTGda6VqFtsr5JdiaDGRdnQmchE1rEH/cLop0VQZhwZF1rd2/ctDL5mnXTI7dy4FdQ4dgLPza9bDsfwG+RIlk19DiqNarFPvTwILL

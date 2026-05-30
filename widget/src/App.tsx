@@ -8,7 +8,7 @@ import type {
   TxnStatus,
 } from './types';
 import { MethodPicker } from './ui/MethodPicker';
-import { IntentPanel } from './ui/IntentPanel';
+import { BankPicker } from './ui/BankPicker';
 import { QrPanel } from './ui/QrPanel';
 import { StatusScreen } from './ui/StatusScreen';
 import { Shell } from './ui/Shell';
@@ -148,9 +148,13 @@ function render(
     case 'initiating':
       return <StatusScreen kind="pending" title="Starting payment…" sub={`Routing to ${state.gateway}`} />;
     case 'awaiting-payment': {
-      if (state.txn.app_intent_url) {
-        return <IntentPanel txn={state.txn} onBack={onBack} />;
+      // Mobile + bank intents → BankPicker (per Fonepay's real flow: each bank
+      // has its own intent scheme, user picks the one whose app they have).
+      if (state.txn.device === 'MOBILE' && (state.txn.intents?.length ?? 0) > 0) {
+        return <BankPicker txn={state.txn} onBack={onBack} />;
       }
+      // Anything that returned a QR payload renders one — covers desktop and
+      // the graceful mobile fallback when the bank catalog wasn't reachable.
       if (state.txn.qr_payload) {
         return <QrPanel txn={state.txn} onBack={onBack} />;
       }

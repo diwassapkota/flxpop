@@ -10,11 +10,16 @@ spring:
       maximum-pool-size: 5
       minimum-idle: 1
 
-# Don't let the scheduled outbound worker fire during tests — we exercise the
-# logic directly via the integration tests instead.
+# Don't let the scheduled outbound worker or Fonepay poller fire during tests —
+# we exercise the logic directly. Tests that want to drive the poller call
+# `poller.tick()` after setting up WireMock stubs.
 flexpop:
   webhook:
     poll-interval-ms: 86400000
+  gateways:
+    fonepay:
+      poll-interval-ms: 86400000
+      poll-initial-delay-ms: 86400000
 
 logging:
   level:
