@@ -110,7 +110,7 @@ class FonepayAdapterFlowTest extends AbstractIntegrationTest {
         Map<String, Object> first = intents.get(0);
         assertThat(first).containsEntry("bank_name", "Test Bank A");
         assertThat(first).containsEntry("package_name", "com.test.banka");
-        assertThat((String) first.get("intent_url")).startsWith("TBKA://payment/?qrPayload=");
+        assertThat((String) first.get("intent_url")).startsWith("tbka://payment/?qrPayload=");
     }
 
     @Test

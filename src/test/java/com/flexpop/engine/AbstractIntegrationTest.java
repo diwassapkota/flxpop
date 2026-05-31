@@ -80,12 +80,14 @@ public abstract class AbstractIntegrationTest {
                         {"accessToken":"test-fp-bearer","tokenType":"Bearer","expiresIn":3600}
                         """)));
 
-        // /banks/list → two banks with distinct intent schemes
+        // /banks/list → two banks with distinct intent schemes.
+        // Matches the real sandbox wire shape: "bankDetails" / "bankName" /
+        // intentScheme as a full URI prefix ending in its path.
         FONEPAY_MOCK.stubFor(get(urlEqualTo("/api/merchant/third-party/v2/banks/list"))
                 .willReturn(okJson("""
-                        {"banks":[
-                          {"name":"Test Bank A","packageName":"com.test.banka","intentScheme":"TBKA"},
-                          {"name":"Test Bank B","packageName":"com.test.bankb","intentScheme":"TBKB"}
+                        {"bankDetails":[
+                          {"bankName":"Test Bank A","bankCode":"TBKA","packageName":"com.test.banka","intentScheme":"tbka://payment/"},
+                          {"bankName":"Test Bank B","bankCode":"TBKB","packageName":"com.test.bankb","intentScheme":"tbkb://payment/"}
                         ]}
                         """)));
 

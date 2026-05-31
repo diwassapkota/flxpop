@@ -255,7 +255,10 @@ public class TransactionService {
                 .map(b -> new TransactionResponse.BankIntent(
                         b.name(),
                         b.packageName(),
-                        b.intentScheme() + "://payment/?qrPayload=" + encodedPayload))
+                        // Fonepay's intentScheme is already a full URI prefix ending in
+                        // its path (e.g. "fonepay://payment/"), so we only append the
+                        // query — NOT another "://payment/", which would corrupt the URI.
+                        b.intentScheme() + "?qrPayload=" + encodedPayload))
                 .toList();
     }
 

@@ -79,14 +79,15 @@ public class DevFonepayMock {
                         // Real Fonepay returns accessToken ALREADY prefixed with "Bearer " —
                         // mirror that so the auth interceptor's de-dup path is exercised locally.
 
-        // A plausible Nepali bank list with real-looking package names and schemes.
+        // Bank list — mirrors the REAL sandbox wire shape: array key "bankDetails",
+        // name field "bankName", and intentScheme as a full URI prefix ending in
+        // its path (e.g. "fonepay://payment/"), NOT a bare scheme word.
         server.stubFor(get(urlEqualTo("/api/merchant/third-party/v2/banks/list"))
                 .willReturn(okJson("""
-                        {"banks":[
-                          {"name":"NIC Asia Bank","packageName":"com.nicasiabank.smartxapp","intentScheme":"NICASIA"},
-                          {"name":"Nabil Bank","packageName":"com.f1soft.nabilmbanking","intentScheme":"NABILBANK"},
-                          {"name":"Sanima Bank","packageName":"com.sanimabank.SanimaMoBank","intentScheme":"SANIMABANK"},
-                          {"name":"Global IME Bank","packageName":"com.f1soft.global.smartbank","intentScheme":"GLOBALIME"}
+                        {"bankDetails":[
+                          {"bankName":"NIC Asia Bank","bankCode":"NICENPKA","bankIcon":"https://fonepay.com/icons/nicasia.png","packageName":"com.nicasiabank.smartxapp","intentScheme":"nicasia://payment/"},
+                          {"bankName":"Nabil Bank","bankCode":"NARBNPKA","bankIcon":"https://fonepay.com/icons/nabil.png","packageName":"com.f1soft.nabilmbanking","intentScheme":"nabil://payment/"},
+                          {"bankName":"Global IME Bank","bankCode":"GLBBNPKA","bankIcon":"https://fonepay.com/icons/globalime.png","packageName":"com.f1soft.global.smartbank","intentScheme":"fonepay://payment/"}
                         ]}
                         """)));
 

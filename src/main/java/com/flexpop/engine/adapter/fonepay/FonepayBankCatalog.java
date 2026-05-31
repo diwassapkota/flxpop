@@ -52,9 +52,9 @@ public class FonepayBankCatalog {
                     .uri(BANKS_PATH)
                     .retrieve()
                     .body(BankListResponse.class);
-            if (res != null && res.banks() != null) {
-                cached = res.banks().stream()
-                        .map(b -> new Bank(b.name(), b.packageName(), b.intentScheme()))
+            if (res != null && res.bankDetails() != null) {
+                cached = res.bankDetails().stream()
+                        .map(b -> new Bank(b.bankName(), b.packageName(), b.intentScheme()))
                         .toList();
                 lastSuccessfulRefresh = Instant.now();
                 log.info("Fonepay bank catalog refreshed: {} banks", cached.size());
@@ -67,9 +67,15 @@ public class FonepayBankCatalog {
 
     public record Bank(String name, String packageName, String intentScheme) { }
 
-    record BankListResponse(List<RawBank> banks) { }
+    // Wire shape verified against the real Fonepay sandbox: the array is
+    // "bankDetails" (not "banks") and the name field is "bankName" (not "name").
+    // intentScheme is a full URI prefix already ending in the path segment,
+    // e.g. "fonepay://payment/" — see buildIntents in TransactionService.
+    record BankListResponse(List<RawBank> bankDetails) { }
     record RawBank(
-            @JsonProperty("name") String name,
+            @JsonProperty("bankName") String bankName,
+            @JsonProperty("bankCode") String bankCode,
+            @JsonProperty("bankIcon") String bankIcon,
             @JsonProperty("packageName") String packageName,
             @JsonProperty("intentScheme") String intentScheme
     ) { }
