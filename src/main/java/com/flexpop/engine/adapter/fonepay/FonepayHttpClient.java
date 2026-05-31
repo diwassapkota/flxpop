@@ -3,6 +3,7 @@ package com.flexpop.engine.adapter.fonepay;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
@@ -93,7 +94,17 @@ public class FonepayHttpClient {
             String path = request.getURI().getPath();
             boolean isLogin = path != null && path.endsWith("/login");
             if (!isLogin) {
-                request.getHeaders().setBearerAuth(cache.currentToken());
+                // Fonepay's /login returns accessToken already prefixed with "Bearer "
+                // (verified against the real sandbox; tokenType is also "Bearer"), and
+                // the Intent API expects that value used verbatim as the Authorization
+                // header. setBearerAuth(token) would prepend a SECOND "Bearer ", which
+                // the gateway rejects with 401. Normalise to exactly one "Bearer " so we
+                // tolerate tokens returned with or without the prefix.
+                String token = cache.currentToken();
+                String header = token.regionMatches(true, 0, "Bearer ", 0, 7)
+                        ? token
+                        : "Bearer " + token;
+                request.getHeaders().set(HttpHeaders.AUTHORIZATION, header);
             }
             return execution.execute(request, body);
         }

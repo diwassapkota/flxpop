@@ -74,8 +74,10 @@ public class DevFonepayMock {
     private void installDefaultStubs() {
         server.stubFor(post(urlEqualTo("/api/merchant/third-party/v2/login"))
                 .willReturn(okJson("""
-                        {"accessToken":"dev-mock-bearer","tokenType":"Bearer","expiresIn":3600}
+                        {"accessToken":"Bearer dev-mock-bearer","tokenType":"Bearer","expiresIn":3600}
                         """)));
+                        // Real Fonepay returns accessToken ALREADY prefixed with "Bearer " —
+                        // mirror that so the auth interceptor's de-dup path is exercised locally.
 
         // A plausible Nepali bank list with real-looking package names and schemes.
         server.stubFor(get(urlEqualTo("/api/merchant/third-party/v2/banks/list"))
