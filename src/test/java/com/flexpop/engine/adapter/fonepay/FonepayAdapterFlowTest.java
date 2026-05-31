@@ -1,6 +1,8 @@
 package com.flexpop.engine.adapter.fonepay;
 
 import com.flexpop.engine.AbstractIntegrationTest;
+import com.flexpop.engine.domain.entity.TransactionEntity;
+import com.flexpop.engine.domain.repo.TransactionRepository;
 import com.flexpop.engine.webhook.FonepayStatusPoller;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,6 +14,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -37,6 +41,9 @@ class FonepayAdapterFlowTest extends AbstractIntegrationTest {
 
     @Autowired
     FonepayTokenCache tokenCache;
+
+    @Autowired
+    TransactionRepository txnRepo;
 
     @BeforeEach
     void freshStubsPerTest() {
@@ -156,5 +163,32 @@ class FonepayAdapterFlowTest extends AbstractIntegrationTest {
                 url("/v1/transactions/" + txnId), HttpMethod.GET,
                 new HttpEntity<String>(authHeaders(null, true)), Map.class);
         assertThat(get.getBody()).containsEntry("status", "ROUTED");
+    }
+
+    @Test
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    void pollerExpiresTxnPastDeadlineWhileStatusStillNonTerminal() {
+        String[] ids = createMobileSessionAndTxn();
+        String txnId = ids[0];
+
+        // Status stub stays on the default non-terminal "pending" — exactly what
+        // Fonepay keeps returning for an unscanned QR. Backdate the txn deadline
+        // so it's already past its expires_at when the poller runs.
+        TransactionEntity txn = txnRepo.findByPublicId(txnId).orElseThrow();
+        txn.setExpiresAt(Instant.now().minus(1, ChronoUnit.MINUTES));
+        txnRepo.save(txn);
+
+        poller.tick();
+
+        ResponseEntity<Map> get = http.exchange(
+                url("/v1/transactions/" + txnId), HttpMethod.GET,
+                new HttpEntity<String>(authHeaders(null, true)), Map.class);
+        Map body = get.getBody();
+        assertThat(body).containsEntry("status", "EXPIRED");
+
+        List<Map<String, Object>> events = (List<Map<String, Object>>) body.get("events");
+        Map<String, Object> last = events.get(events.size() - 1);
+        assertThat(last).containsEntry("type", "payment.expired");
+        assertThat(last).containsEntry("source", "SYSTEM");
     }
 }

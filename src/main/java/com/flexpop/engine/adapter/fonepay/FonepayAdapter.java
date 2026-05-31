@@ -124,6 +124,11 @@ public class FonepayAdapter implements GatewayAdapter {
         return switch (res.paymentStatus().toLowerCase()) {
             case "success" -> new StatusResult(gatewayRef, "SETTLED", Instant.now(), null, null);
             case "failed"  -> new StatusResult(gatewayRef, "FAILED", null, "GATEWAY_FAILED", res.paymentMessage());
+            // Everything else — notably "timeout"/"Data not found." which Fonepay
+            // returns for an unscanned QR (verified live, even seconds after the QR
+            // is created) — is PENDING. We deliberately do NOT treat "timeout" as
+            // expired here: that would expire fresh, unpaid txns on the first poll.
+            // Expiry is driven by the txn's own deadline in FonepayStatusPoller.
             default        -> new StatusResult(gatewayRef, "PENDING", null, null, null);
         };
     }
