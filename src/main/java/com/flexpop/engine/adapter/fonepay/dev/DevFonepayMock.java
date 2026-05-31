@@ -34,8 +34,17 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
  *                   "jsonBody":{"paymentStatus":"success","paymentMessage":"Payment success","fonepayTraceId":99999}}
  *   }'
  *
- *   # 2) reset to default (pending)
- *   curl -X POST http://localhost:8089/__admin/mappings/reset
+ *   # 2) back to pending — add a priority-1 PENDING override on top of the success one.
+ *   #    Do NOT use POST /__admin/mappings/reset: these stubs are registered
+ *   #    programmatically (not from files), so reset wipes ALL of them — including
+ *   #    login / banks / generate-intent-qr — and restores nothing, breaking the mock.
+ *   #    To get a clean baseline, restart the engine instead.
+ *   curl -X POST http://localhost:8089/__admin/mappings -H 'Content-Type: application/json' -d '{
+ *     "priority": 1,
+ *     "request":  {"method":"POST","url":"/api/merchant/third-party/v2/thirdPartyDynamicQrGetStatus"},
+ *     "response": {"status":200,"headers":{"Content-Type":"application/json"},
+ *                   "jsonBody":{"paymentStatus":"pending","paymentMessage":"Awaiting payment","fonepayTraceId":0}}
+ *   }'
  * }</pre>
  */
 @Component
