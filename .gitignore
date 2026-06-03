@@ -25,3 +25,6 @@ reference-docs/Fonepay_Intent/
 .vscode/
 .DS_Store
 widget/tsconfig.tsbuildinfo
+
+# Filled-in deployment secrets
+engine.env

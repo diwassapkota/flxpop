@@ -1,0 +1,49 @@
+# Local full-stack container validation — proves the images work end-to-end
+# before pushing to AWS. NOT the production topology (prod uses RDS + ECS, etc.).
+#
+#   1. cp engine.env.example engine.env   # fill in real FONEPAY_* values
+#   2. docker compose up --build
+#   3. open http://localhost:8088/demo.html
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rootpass}
+      MYSQL_DATABASE: ${FLEXPOP_DB_NAME:-flexpop}
+    ports: ["3306:3306"]
+    volumes: ["flexpop-mysql:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:-rootpass}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  engine:
+    build: .
+    depends_on:
+      mysql:
+        condition: service_healthy
+    env_file: [engine.env]
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PASSWORD: ${DB_PASSWORD:-rootpass}
+      FLEXPOP_DB_NAME: ${FLEXPOP_DB_NAME:-flexpop}
+      DB_USE_SSL: "false"            # the local mysql container; RDS uses true
+      # eSewa redirect/return must be browser-reachable URLs:
+      ESEWA_ENGINE_BASE_URL: http://localhost:8080
+      ESEWA_RETURN_URL: http://localhost:8088/demo.html
+      FLEXPOP_CORS_ALLOWED_ORIGIN_PATTERNS: http://localhost:8088,http://localhost:*
+    ports: ["8080:8080"]
+
+  web:
+    build: ./widget
+    depends_on: [engine]
+    environment:
+      ENGINE_PUBLIC_URL: http://localhost:8080
+    ports: ["8088:80"]
+
+volumes:
+  flexpop-mysql:

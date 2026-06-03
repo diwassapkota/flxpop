@@ -1,0 +1,40 @@
+# Production profile — every secret/endpoint comes from the environment.
+# Nothing sensitive is committed here; inject via the container's env (sourced
+# from AWS Secrets Manager / SSM at deploy time). Activate with
+# SPRING_PROFILES_ACTIVE=prod.
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${FLEXPOP_DB_NAME:flexpop}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&useSSL=${DB_USE_SSL:true}&allowPublicKeyRetrieval=true
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN:2}
+      pool-name: flexpop-hikari
+
+flexpop:
+  gateways:
+    fonepay:
+      terminal-id:               ${FONEPAY_TERMINAL_ID}
+      login-username:            ${FONEPAY_USERNAME}
+      login-password:            ${FONEPAY_PASSWORD}
+      private-key-base64-pkcs8:  ${FONEPAY_PRIVATE_KEY_B64}
+      base-url:                  ${FONEPAY_BASE_URL:https://dev-external-gateway-new.fonepay.com/merchantThirdparty}
+      webhook-secret:            ${FONEPAY_WEBHOOK_SECRET}
+      poll-interval-ms:          ${FONEPAY_POLL_INTERVAL_MS:5000}
+    esewa:
+      merchant-code:    ${ESEWA_MERCHANT_CODE:EPAYTEST}
+      secret-key:       ${ESEWA_SECRET_KEY}
+      form-url:         ${ESEWA_FORM_URL:https://rc-epay.esewa.com.np/api/epay/main/v2/form}
+      status-url:       ${ESEWA_STATUS_URL:https://rc.esewa.com.np/api/epay/transaction/status/}
+      # MUST be the engine's public URL and the merchant checkout URL so eSewa's
+      # browser redirect/callback works (no localhost in prod).
+      engine-base-url:  ${ESEWA_ENGINE_BASE_URL}
+      return-url:       ${ESEWA_RETURN_URL}
+      poll-interval-ms: ${ESEWA_POLL_INTERVAL_MS:5000}
+
+logging:
+  level:
+    com.flexpop: ${LOG_LEVEL:INFO}
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
