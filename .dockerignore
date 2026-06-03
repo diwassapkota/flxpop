@@ -8,9 +8,6 @@ target/
 *.md
 .DS_Store
 
-# The web app builds in its own image (widget/Dockerfile).
-widget/
-
 # Secrets / vendor-private material — MUST NOT enter the image context.
 reference-docs/
 *.env

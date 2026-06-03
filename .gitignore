@@ -6,11 +6,6 @@ target/
 hs_err_pid*.log
 replay_pid*.log
 
-# Widget — Node / Vite
-widget/node_modules/
-widget/dist/
-widget/.vite/
-
 # Local config
 .env
 .env.local
@@ -24,7 +19,6 @@ reference-docs/Fonepay_Intent/
 *.iml
 .vscode/
 .DS_Store
-widget/tsconfig.tsbuildinfo
 
 # Filled-in deployment secrets
 engine.env
