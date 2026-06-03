@@ -1,9 +1,10 @@
-# Local full-stack container validation — proves the images work end-to-end
+# Local engine + mysql container validation — proves the images work
 # before pushing to AWS. NOT the production topology (prod uses RDS + ECS, etc.).
+# The web/widget is a separate repo (flexpop-widget) with its own compose.
 #
 #   1. cp engine.env.example engine.env   # fill in real FONEPAY_* values
-#   2. docker compose up --build
-#   3. open http://localhost:8088/demo.html
+#   2. docker compose up --build          # engine on http://localhost:8080
+#   3. run the widget from the flexpop-widget repo (its compose serves :8088)
 services:
   mysql:
     image: mysql:8.0
@@ -38,12 +39,8 @@ services:
       FLEXPOP_CORS_ALLOWED_ORIGIN_PATTERNS: http://localhost:8088,http://localhost:*
     ports: ["8080:8080"]
 
-  web:
-    build: ./widget
-    depends_on: [engine]
-    environment:
-      ENGINE_PUBLIC_URL: http://localhost:8080
-    ports: ["8088:80"]
+  # The web/widget container lives in the flexpop-widget repo (its own
+  # docker-compose.yml). Run it separately and point ENGINE_PUBLIC_URL here.
 
 volumes:
   flexpop-mysql:
