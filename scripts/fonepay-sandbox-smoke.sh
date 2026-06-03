@@ -8,7 +8,7 @@
 # way the engine's FonepaySigner does. Prints PASS/FAIL per endpoint and exits
 # non-zero if any check fails — so it doubles as a CI/pre-flight gate.
 #
-# This is a check of the *upstream gateway contract*, not the FlexPop engine.
+# This is a check of the *upstream gateway contract*, not the FlxPop engine.
 # (The engine's own /v1 API is covered by `mvn test` + widget/prove-*.mjs.)
 #
 # Credentials: by default read straight from the Postman collection (which embeds

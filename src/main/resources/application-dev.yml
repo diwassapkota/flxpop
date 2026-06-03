@@ -1,14 +1,14 @@
 spring:
   datasource:
-    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${FLEXPOP_DB_NAME:flexpop}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${FLXPOP_DB_NAME:flxpop}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
     username: ${DB_USER:root}
     password: ${DB_PASSWORD:}
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
-      pool-name: flexpop-hikari
+      pool-name: flxpop-hikari
 
-flexpop:
+flxpop:
   gateways:
     fonepay:
       terminal-id: ${FONEPAY_TERMINAL_ID:STUB-TERMINAL-ID}
@@ -41,6 +41,6 @@ flexpop:
 
 logging:
   level:
-    com.flexpop: DEBUG
+    com.flxpop: DEBUG
     org.springframework.web: INFO
     org.hibernate.SQL: INFO

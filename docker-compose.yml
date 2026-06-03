@@ -1,18 +1,18 @@
 # Local engine + mysql container validation — proves the images work
 # before pushing to AWS. NOT the production topology (prod uses RDS + ECS, etc.).
-# The web/widget is a separate repo (flexpop-widget) with its own compose.
+# The web/widget is a separate repo (flxpop-widget) with its own compose.
 #
 #   1. cp engine.env.example engine.env   # fill in real FONEPAY_* values
 #   2. docker compose up --build          # engine on http://localhost:8080
-#   3. run the widget from the flexpop-widget repo (its compose serves :8088)
+#   3. run the widget from the flxpop-widget repo (its compose serves :8088)
 services:
   mysql:
     image: mysql:8.0
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-rootpass}
-      MYSQL_DATABASE: ${FLEXPOP_DB_NAME:-flexpop}
+      MYSQL_DATABASE: ${FLXPOP_DB_NAME:-flxpop}
     ports: ["3306:3306"]
-    volumes: ["flexpop-mysql:/var/lib/mysql"]
+    volumes: ["flxpop-mysql:/var/lib/mysql"]
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:-rootpass}"]
       interval: 5s
@@ -31,16 +31,16 @@ services:
       DB_PORT: "3306"
       DB_USER: root
       DB_PASSWORD: ${DB_PASSWORD:-rootpass}
-      FLEXPOP_DB_NAME: ${FLEXPOP_DB_NAME:-flexpop}
+      FLXPOP_DB_NAME: ${FLXPOP_DB_NAME:-flxpop}
       DB_USE_SSL: "false"            # the local mysql container; RDS uses true
       # eSewa redirect/return must be browser-reachable URLs:
       ESEWA_ENGINE_BASE_URL: http://localhost:8080
       ESEWA_RETURN_URL: http://localhost:8088/demo.html
-      FLEXPOP_CORS_ALLOWED_ORIGIN_PATTERNS: http://localhost:8088,http://localhost:*
+      FLXPOP_CORS_ALLOWED_ORIGIN_PATTERNS: http://localhost:8088,http://localhost:*
     ports: ["8080:8080"]
 
-  # The web/widget container lives in the flexpop-widget repo (its own
+  # The web/widget container lives in the flxpop-widget repo (its own
   # docker-compose.yml). Run it separately and point ENGINE_PUBLIC_URL here.
 
 volumes:
-  flexpop-mysql:
+  flxpop-mysql:

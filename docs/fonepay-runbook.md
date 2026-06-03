@@ -61,7 +61,7 @@ truth, so a reloaded mobile tab still recovers the outcome.
 `paymentSuccess` boolean. Parsers: `FonepaySocketManager.parse` (engine) and
 `parseFonepaySocketMessage` (widget) — keep them in sync.
 
-## Config knobs (`flexpop.gateways.fonepay.*`)
+## Config knobs (`flxpop.gateways.fonepay.*`)
 
 | Property | Default (dev) | Meaning |
 | --- | --- | --- |

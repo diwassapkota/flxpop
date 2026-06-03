@@ -1,4 +1,4 @@
--- FlexPop V1 — baseline schema.
+-- FlxPop V1 — baseline schema.
 --
 -- Conventions:
 --   * Internal PKs: BIGINT UNSIGNED AUTO_INCREMENT.
@@ -234,5 +234,5 @@ INSERT INTO gateway_method (country, gateway, display_name, sort_order) VALUES
 -- Replace before any pilot.
 -- ---------------------------------------------------------------------------
 INSERT INTO merchant (public_id, name, webhook_url, webhook_secret) VALUES
-    ('MCH-DEV-LOCAL', 'Dev Merchant (local)', 'http://localhost:9090/flexpop-webhook',
+    ('MCH-DEV-LOCAL', 'Dev Merchant (local)', 'http://localhost:9090/flxpop-webhook',
      'dev-webhook-secret-change-me');

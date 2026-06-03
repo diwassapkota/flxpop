@@ -12,10 +12,10 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.flexpop</groupId>
-    <artifactId>flexpop-engine</artifactId>
+    <groupId>com.flxpop</groupId>
+    <artifactId>flxpop-engine</artifactId>
     <version>0.1.0-SNAPSHOT</version>
-    <name>FlexPop Orchestration Engine</name>
+    <name>FlxPop Orchestration Engine</name>
     <description>L2 — payment orchestration engine for South/SE Asian local rails</description>
 
     <properties>

@@ -1,6 +1,6 @@
 spring:
   application:
-    name: flexpop-engine
+    name: flxpop-engine
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
   threads:
@@ -29,7 +29,7 @@ spring:
     locations: classpath:db/migration
 
 server:
-  port: ${FLEXPOP_PORT:8080}
+  port: ${FLXPOP_PORT:8080}
   error:
     include-message: never
     include-stacktrace: never
@@ -44,10 +44,10 @@ management:
     health:
       show-details: never
 
-flexpop:
+flxpop:
   cors:
     # Origins allowed to call /v1/** from a browser. Local dev + LAN by default;
-    # override in prod via FLEXPOP_CORS_ALLOWED_ORIGIN_PATTERNS (comma-separated),
+    # override in prod via FLXPOP_CORS_ALLOWED_ORIGIN_PATTERNS (comma-separated),
     # e.g. https://checkout.example.com
     allowed-origin-patterns: >-
-      http://localhost:*,http://127.0.0.1:*,http://10.*,http://192.168.*,http://172.*,https://*.flexpop.io,https://*.flexpop.dev
+      http://localhost:*,http://127.0.0.1:*,http://10.*,http://192.168.*,http://172.*,https://*.flxpop.io,https://*.flxpop.dev

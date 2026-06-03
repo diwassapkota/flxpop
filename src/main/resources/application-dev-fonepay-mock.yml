@@ -2,7 +2,7 @@
 # to point at the in-process WireMock started by DevFonepayMock on port 8089.
 # Combine with the `dev` profile:
 #   mvn spring-boot:run -Dspring-boot.run.profiles=dev,dev-fonepay-mock
-flexpop:
+flxpop:
   gateways:
     fonepay:
       base-url: http://localhost:8089
