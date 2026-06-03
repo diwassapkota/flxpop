@@ -248,14 +248,16 @@ public class TransactionService {
      * </ul>
      */
     /**
-     * The Fonepay real-time payment socket for a mobile transaction that's still
-     * awaiting payment. Pulled back from the persisted {@code txn.routed} event
-     * (so it survives across GET polls without a dedicated column). Null for
-     * desktop, non-Fonepay, or terminal transactions — the widget only needs it
-     * while it's waiting, and the engine's status poll remains authoritative.
+     * The Fonepay real-time payment socket for a transaction that's still
+     * awaiting payment. Per the Intent doc (§5.1, §9.5) this socket drives BOTH
+     * the desktop QR scan-to-pay flow and the mobile bank-intent flow — the web
+     * client opens it and, on the payment message, verifies + shows success. So
+     * it's surfaced for every non-terminal Fonepay txn regardless of device.
+     * Pulled back from the persisted {@code txn.routed} event (so it survives
+     * across GET polls without a dedicated column). Null for non-Fonepay or
+     * terminal transactions; the engine's status poll remains authoritative.
      */
     private String websocketUrl(TransactionEntity t, List<TransactionEventEntity> events) {
-        if (t.getDevice() != Device.MOBILE) return null;
         if (t.getGateway() != Gateway.FONEPAY) return null;
         if (t.getStatus().isTerminal()) return null;
         return events.stream()
