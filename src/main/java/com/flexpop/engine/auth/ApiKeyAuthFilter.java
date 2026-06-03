@@ -74,6 +74,11 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) return true;
         if (path.startsWith("/actuator/")) return true;
         if (path.startsWith("/v1/webhooks/gateways/")) return true;
+        // Browser-facing gateway redirect/callback pages (e.g. eSewa's hosted
+        // checkout + success/failure landing). Hit by the shopper's browser and
+        // by the gateway's redirect, not by an API client — trust is the
+        // gateway's HMAC signature on the callback, not an API key.
+        if (path.startsWith("/v1/gateways/")) return true;
         return false;
     }
 

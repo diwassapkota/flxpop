@@ -18,6 +18,20 @@ flexpop:
       base-url: ${FONEPAY_BASE_URL:https://dev-external-gateway-new.fonepay.com/merchantThirdparty}
       webhook-secret: ${FONEPAY_WEBHOOK_SECRET:dev-fonepay-webhook-secret}
       poll-interval-ms: ${FONEPAY_POLL_INTERVAL_MS:5000}
+    esewa:
+      # Defaults are eSewa's published UAT/sandbox values (product code EPAYTEST
+      # + the public test secret) — works out of the box against rc-epay.esewa.
+      # engine-base-url MUST be reachable by the shopper's browser AND by eSewa's
+      # redirect; for local dev that's localhost:8080.
+      merchant-code: ${ESEWA_MERCHANT_CODE:EPAYTEST}
+      secret-key: ${ESEWA_SECRET_KEY:8gBm/:&EnhH.1/q}
+      form-url: ${ESEWA_FORM_URL:https://rc-epay.esewa.com.np/api/epay/main/v2/form}
+      status-url: ${ESEWA_STATUS_URL:https://rc.esewa.com.np/api/epay/transaction/status/}
+      engine-base-url: ${ESEWA_ENGINE_BASE_URL:http://localhost:8080}
+      # After settling, eSewa's callback 302s the browser back here (the merchant
+      # checkout) with ?flxpop_txn=…&flxpop_result=… so the page shows the result.
+      return-url: ${ESEWA_RETURN_URL:http://localhost:5173/demo.html}
+      poll-interval-ms: ${ESEWA_POLL_INTERVAL_MS:5000}
 
 logging:
   level:

@@ -20,6 +20,9 @@ flexpop:
     fonepay:
       poll-interval-ms: 86400000
       poll-initial-delay-ms: 86400000
+    esewa:
+      poll-interval-ms: 86400000
+      poll-initial-delay-ms: 86400000
 
 logging:
   level:
