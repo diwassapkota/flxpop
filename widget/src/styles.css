@@ -104,6 +104,8 @@ html, body, #root {
   font: inherit;
   text-align: left;
   width: 100%;
+  text-decoration: none;  /* bank rows are <a> tags — kill the link underline */
+  color: inherit;
 }
 
 .fp-method:hover  { border-color: var(--line-strong); background: var(--bg-soft); }
@@ -136,25 +138,51 @@ html, body, #root {
   color: var(--faint);
 }
 
+.fp-shell--compact {
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+
 .fp-card {
   border: 1.5px solid var(--line);
   border-radius: 14px;
-  padding: 24px;
+  padding: 18px;
   background: var(--bg);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .fp-qr {
   background: white;
-  padding: 16px;
+  padding: 10px;
   border-radius: 12px;
   border: 1px solid var(--line);
 }
 
 .fp-qr canvas { display: block; }
+
+/* compact "waiting" row + subtle back link — replaces the big spinner,
+   the "Waiting · txnid" dev line, and the heavy ghost button. */
+.fp-waiting {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12.5px; color: var(--muted); font-weight: 500;
+}
+.fp-waiting-dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid var(--line); border-top-color: var(--accent);
+  animation: fp-spin .8s linear infinite;
+}
+.fp-linkback {
+  background: none; border: 0; padding: 2px;
+  font: inherit; font-size: 12.5px; font-weight: 600;
+  color: var(--faint); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.fp-linkback:hover { color: var(--muted); }
 
 .fp-instruction {
   font-size: 14px;

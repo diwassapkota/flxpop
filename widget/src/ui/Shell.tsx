@@ -1,15 +1,25 @@
 import type { ReactNode } from 'react';
 import type { Currency } from '../types';
 
+/**
+ * Widget chrome. In `compact` mode (the widget is embedded in a merchant
+ * checkout that already shows the brand, amount and "secured by" marks) we drop
+ * the header and secure footer so the widget is just the payment card — no
+ * duplicated amount, no extra chrome, far less height.
+ */
 export function Shell({
-  amount, currency, children,
-}: { amount: number; currency: Currency; children: ReactNode }) {
+  amount, currency, children, compact = false,
+}: { amount: number; currency: Currency; children: ReactNode; compact?: boolean }) {
+  if (compact) {
+    return <div className="fp-shell fp-shell--compact">{children}</div>;
+  }
+
   return (
     <div className="fp-shell">
       <header className="fp-header">
         <div className="fp-brand">
           <span className="fp-brand-mark" />
-          <span>FLEXPOP</span>
+          <span>FLXPOP</span>
         </div>
         <div>
           <div className="fp-label" style={{ textAlign: 'right' }}>Amount due</div>
@@ -24,7 +34,7 @@ export function Shell({
 
       <footer className="fp-secure-row">
         <SecureIcon />
-        <span>Secured by FlexPop · payment never touches the merchant</span>
+        <span>Secured by FlxPop · payment never touches the merchant</span>
       </footer>
     </div>
   );

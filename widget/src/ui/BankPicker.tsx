@@ -2,7 +2,7 @@ import type { BankIntent, TransactionResponse } from '../types';
 
 export function BankPicker({
   txn, onBack,
-}: { txn: TransactionResponse; onBack: () => void }) {
+}: { txn: TransactionResponse; onBack?: () => void }) {
   const intents = txn.intents ?? [];
 
   return (
@@ -10,14 +10,20 @@ export function BankPicker({
       <div className="fp-label">Pick your banking app</div>
 
       <div className="fp-methods" style={{ width: '100%' }}>
-        {intents.map((intent) => (
+        {intents.map((intent, i) => (
           <a
-            key={intent.package_name}
+            // package_name can repeat (the Fonepay app + member banks share one
+            // scheme), so include the index to keep keys unique.
+            key={`${intent.package_name}-${i}`}
             className="fp-method"
             href={intent.intent_url}
-            // Native link so iOS/Android intent resolution kicks in; no
-            // preventDefault, no router. The bank app handles `qrPayload`
-            // and brings the user back to FlexPop via the status poll.
+            // target="_top" launches the deep-link from the TOP window. Mobile
+            // browsers block a cross-origin sub-frame (the widget iframe) from
+            // navigating to a custom scheme like fonepay://, so without this the
+            // tap silently does nothing. The bank app handles `qrPayload` and the
+            // status poll brings the shopper back.
+            target="_top"
+            rel="noopener noreferrer"
           >
             <span className="fp-method-icon" style={{ background: '#0EA5A4' }}>
               {firstLetter(intent.bank_name)}
@@ -31,11 +37,15 @@ export function BankPicker({
         ))}
       </div>
 
-      <div className="fp-spinner" />
-      <div className="fp-tiny">Waiting for approval · {txn.txn_id}</div>
-      <button type="button" className="fp-button fp-button-ghost" onClick={onBack}>
-        Choose a different method
-      </button>
+      <div className="fp-waiting">
+        <span className="fp-waiting-dot" />
+        Waiting for approval…
+      </div>
+      {onBack && (
+        <button type="button" className="fp-linkback" onClick={onBack}>
+          Choose a different method
+        </button>
+      )}
     </div>
   );
 }

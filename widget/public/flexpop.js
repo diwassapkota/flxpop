@@ -49,7 +49,9 @@
     iframe.title = 'FlexPop Checkout';
     iframe.src = widgetOrigin + '/';
     iframe.allow = 'payment';
-    iframe.style.cssText = 'border:0;width:100%;min-height:560px;display:block;background:transparent;';
+    // min-height floors the frame so a too-early/zero resize message can never
+    // collapse it to a blank sliver (seen on some mobile browsers).
+    iframe.style.cssText = 'border:0;width:100%;height:440px;min-height:360px;display:block;background:transparent;transition:height .15s ease;';
     container.appendChild(iframe);
 
     var booted = false;
@@ -61,6 +63,7 @@
         engineBaseUrl:  opts.engineBaseUrl,
         publishableKey: opts.publishableKey,
         session:        opts.session,
+        gateway:        opts.gateway,  // optional: deep-link straight to one gateway
       }, widgetOrigin);
     }
 
@@ -69,6 +72,9 @@
       if (widgetOrigin !== '*' && e.origin !== widgetOrigin) return;
       var msg = e.data || {};
       switch (msg.type) {
+        case 'flexpop:resize':
+          if (msg.height && msg.height > 0) iframe.style.height = msg.height + 'px';
+          break;
         case 'flexpop:ready':    postBoot(); break;
         case 'flexpop:settled':  opts.onSettled  && opts.onSettled(msg); break;
         case 'flexpop:failed':   opts.onFailed   && opts.onFailed(msg);  break;
@@ -78,7 +84,11 @@
     }
 
     window.addEventListener('message', onMessage);
-    iframe.addEventListener('load', postBoot);
+    // Primary: boot when the widget posts 'flexpop:ready' (its message listener
+    // is guaranteed attached by then). Fallback: a delayed boot on 'load' in
+    // case the ready handshake is missed — delayed so it can't fire before the
+    // widget's listener exists (the race that left the frame blank on mobile).
+    iframe.addEventListener('load', function () { setTimeout(postBoot, 400); });
 
     return {
       destroy: function () {

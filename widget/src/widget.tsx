@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App, type BootConfig } from './App';
 import type { SessionResponse } from './types';
@@ -30,6 +30,9 @@ function Bootstrap() {
         engineBaseUrl: data.engineBaseUrl,
         publishableKey: data.publishableKey,
         session: data.session as SessionResponse,
+        gateway: typeof data.gateway === 'string'
+          ? (data.gateway as BootConfig['gateway'])
+          : undefined,
       });
     };
     window.addEventListener('message', onMessage);
@@ -55,11 +58,17 @@ function readUrlParams(): BootConfig | null {
   const engine = params.get('engine');
   const pk = params.get('pk');
   const sessionParam = params.get('session');
+  const gateway = params.get('gateway') ?? undefined;
   if (!engine || !pk || !sessionParam) return null;
   try {
     const decoded = decodeURIComponent(escape(atob(sessionParam.replace(/-/g, '+').replace(/_/g, '/'))));
     const session = JSON.parse(decoded) as SessionResponse;
-    return { engineBaseUrl: engine, publishableKey: pk, session };
+    return {
+      engineBaseUrl: engine,
+      publishableKey: pk,
+      session,
+      gateway: gateway as BootConfig['gateway'] | undefined,
+    };
   } catch {
     return null;
   }
@@ -73,8 +82,7 @@ function isValidBoot(data: unknown): data is BootConfig & { type: 'flexpop:boot'
       && typeof d.session === 'object' && d.session !== null;
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <Bootstrap />
-  </StrictMode>,
-);
+// No StrictMode: its dev-only double-invoke fires the transaction-initiate
+// effect twice, sending two POSTs with the same Idempotency-Key that race at
+// the DB (409 duplicate-key). Single-invoke matches production behavior.
+createRoot(document.getElementById('root')!).render(<Bootstrap />);

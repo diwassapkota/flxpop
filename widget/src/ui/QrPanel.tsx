@@ -4,19 +4,18 @@ import type { TransactionResponse } from '../types';
 
 export function QrPanel({
   txn, onBack,
-}: { txn: TransactionResponse; onBack: () => void }) {
+}: { txn: TransactionResponse; onBack?: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current || !txn.qr_payload) return;
     QRCode.toCanvas(canvasRef.current, txn.qr_payload, {
-      width: 240,
+      width: 200,
       margin: 1,
       errorCorrectionLevel: 'M',
       color: { dark: '#0F1B2D', light: '#FFFFFF' },
     }).catch(() => {
-      // Rendering failed (extremely rare) — leave the canvas blank, the user
-      // still has the deep-link path via "choose another method".
+      // Rendering failed (extremely rare) — leave the canvas blank.
     });
   }, [txn.qr_payload]);
 
@@ -27,14 +26,17 @@ export function QrPanel({
         <canvas ref={canvasRef} />
       </div>
       <div className="fp-instruction">
-        Open <strong>{txn.gateway}</strong> on your phone and scan this code.
-        Approve the payment to complete checkout.
+        Open <strong>{txn.gateway}</strong> on your phone and scan to approve the payment.
       </div>
-      <div className="fp-spinner" />
-      <div className="fp-tiny">Waiting for scan · {txn.txn_id}</div>
-      <button type="button" className="fp-button fp-button-ghost" onClick={onBack}>
-        Choose a different method
-      </button>
+      <div className="fp-waiting">
+        <span className="fp-waiting-dot" />
+        Waiting for payment…
+      </div>
+      {onBack && (
+        <button type="button" className="fp-linkback" onClick={onBack}>
+          Choose a different method
+        </button>
+      )}
     </div>
   );
 }
