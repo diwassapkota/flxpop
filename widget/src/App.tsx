@@ -44,6 +44,7 @@ type Action =
   | { type: 'choose-method'; gateway: Gateway }
   | { type: 'initiated';     txn: TransactionResponse }
   | { type: 'qr-verified' }
+  | { type: 'socket-result'; success: boolean }
   | { type: 'polled';        txn: TransactionResponse }
   | { type: 'errored';       message: string; txn?: TransactionResponse }
   | { type: 'cancel-back-to-methods' };
@@ -57,6 +58,13 @@ function reducer(state: State, action: Action): State {
     case 'qr-verified':
       // Only meaningful while still awaiting payment; ignore once terminal.
       return state.phase === 'awaiting-payment' ? { ...state, scanned: true } : state;
+    case 'socket-result':
+      // Terminal result delivered by Fonepay's payment socket — drive the
+      // result screen straight off it (the engine's status poll can't confirm).
+      if (state.phase !== 'awaiting-payment') return state;
+      return action.success
+        ? { phase: 'settled', txn: state.txn }
+        : { phase: 'failed', txn: state.txn, message: state.txn.failure_message ?? 'Payment failed' };
     case 'polled': {
       const status: TxnStatus = action.txn.status;
       if (status === 'SETTLED')               return { phase: 'settled',  txn: action.txn };
@@ -167,12 +175,17 @@ export function App({ engineBaseUrl, publishableKey, session, gateway }: BootCon
     };
   }, [state.phase === 'awaiting-payment' ? state.txn.txn_id : null, client]);
 
-  // Real-time: when Fonepay hands us a payment socket, listen on it so we learn
-  // the result the instant the shopper approves — not just on the next poll. The
-  // socket is an accelerator, NOT the source of truth: on a payment message we
-  // kick an immediate status re-check against the engine (which verifies via the
-  // Fonepay status API). The 2s poll above keeps running as the fallback, so a
-  // dropped/blocked socket never strands the payment.
+  // Real-time result straight from Fonepay's payment socket.
+  //
+  // The socket is the authoritative channel the doc (§5.1, §9.5) gives the web
+  // client: a QR-verification frame on scan, then a payment frame carrying
+  // `paymentSuccess` on approve/decline. We drive the result screen directly
+  // off that frame. We deliberately do NOT round-trip through the engine to
+  // confirm: Fonepay's status API (thirdPartyDynamicQrGetStatus) returns 409
+  // for this merchant, so the engine's poll never settles — waiting on it is
+  // exactly why the redirect was stuck. Server-side fulfilment still relies on
+  // the engine's webhook/reconciliation, not this presentational signal. The 2s
+  // poll above stays as a fallback for transactions with no socket URL.
   useEffect(() => {
     if (state.phase !== 'awaiting-payment') return;
     const url = state.txn.websocket_url;
@@ -181,53 +194,30 @@ export function App({ engineBaseUrl, publishableKey, session, gateway }: BootCon
 
     let stopped = false;
     let ws: WebSocket | null = null;
-    let burst: number | undefined;
-
-    // Briefly poll the engine fast (its own status poll lags up to a few
-    // seconds) so we surface the verified terminal state right after the socket
-    // says a payment happened.
-    const verifyNow = () => {
-      let n = 0;
-      const tick = async () => {
-        if (stopped) return;
-        try {
-          const txn = await client.getTransaction(txnId);
-          if (stopped) return;
-          dispatch({ type: 'polled', txn });
-          if (txn.status === 'SETTLED' || txn.status === 'FAILED' || txn.status === 'EXPIRED') {
-            notifyParent({
-              type: txn.status === 'SETTLED' ? 'flexpop:settled'
-                   : txn.status === 'FAILED' ? 'flexpop:failed'
-                   : 'flexpop:expired',
-              txn_id: txn.txn_id,
-              status: txn.status,
-            });
-            return;
-          }
-        } catch { /* transient — keep trying within the burst window */ }
-        if (++n < 15) burst = window.setTimeout(tick, 1000);
-      };
-      tick();
-    };
 
     try {
       ws = new WebSocket(url);
       ws.onmessage = (e) => {
-        const kind = parseFonepaySocketMessage(e.data);
-        // QR scanned / bank app opened, payment not yet approved → show the
-        // "confirm in your app" step. Payment approved/declined → verify.
-        if (kind === 'verified') dispatch({ type: 'qr-verified' });
-        else if (kind === 'payment') verifyNow();
+        if (stopped) return;
+        const r = parseFonepaySocketMessage(e.data);
+        if (r === 'verified') {
+          dispatch({ type: 'qr-verified' });                 // scanned → "confirm in your app"
+        } else if (r === 'success') {
+          dispatch({ type: 'socket-result', success: true });
+          notifyParent({ type: 'flexpop:settled', txn_id: txnId, status: 'SETTLED' });
+        } else if (r === 'failed') {
+          dispatch({ type: 'socket-result', success: false });
+          notifyParent({ type: 'flexpop:failed', txn_id: txnId, status: 'FAILED' });
+        }
       };
-      // onerror / onclose: silently fall back to polling, which is still live.
+      // onerror / onclose: silently fall back to polling.
     } catch { /* WebSocket unsupported or a bad URL — polling covers us. */ }
 
     return () => {
       stopped = true;
-      if (burst) window.clearTimeout(burst);
       try { ws?.close(); } catch { /* already closing */ }
     };
-  }, [state.phase === 'awaiting-payment' ? state.txn.txn_id : null, client]);
+  }, [state.phase === 'awaiting-payment' ? state.txn.txn_id : null]);
 
   // When the merchant deep-linked one gateway, there's no in-widget picker to go
   // back to (the merchant's own tiles switch methods) — so suppress the panels'
@@ -287,21 +277,29 @@ function render(
 
 /**
  * Fonepay's payment socket sends `{ merchantId, deviceId, transactionStatus }`
- * where `transactionStatus` is itself a JSON *string* (double-encoded). It emits
- * a QR-verification message when the code is scanned (`QRVerified`) and a
- * payment message when the shopper approves/declines (`paymentSuccess`). We only
- * act on the payment message — and even then we re-verify against the engine
- * rather than trusting the socket's value. Returns 'payment', 'verified', or null.
+ * where `transactionStatus` is itself a JSON *string* (double-encoded):
+ *
+ *   scan:    {"success":true,"message":"VERIFIED","qrVerified":true}
+ *   paid:    {...,"message":"RES000","success":true,"paymentSuccess":true}
+ *
+ * Field names verified against the live production socket — they differ from the
+ * doc (§9.5.1), which shows " QRVerified" (caps + stray space); production sends
+ * `qrVerified`. We accept all variants. Returns:
+ *   'verified' → QR scanned, awaiting approval
+ *   'success' / 'failed' → terminal payment result
+ *   null → anything else (keepalive, unknown frame)
  */
-function parseFonepaySocketMessage(data: unknown): 'payment' | 'verified' | null {
+function parseFonepaySocketMessage(data: unknown): 'verified' | 'success' | 'failed' | null {
   if (typeof data !== 'string') return null;
   try {
     const outer = JSON.parse(data) as Record<string, unknown>;
     const ts = outer.transactionStatus;
     const inner = (typeof ts === 'string' ? JSON.parse(ts) : ts ?? outer) as Record<string, unknown>;
-    if (inner && typeof inner.paymentSuccess === 'boolean') return 'payment';
-    // The doc renders the key with a stray leading space (" QRVerified") — accept both.
-    if (inner && (inner.QRVerified || inner[' QRVerified'])) return 'verified';
+    if (!inner) return null;
+    // Payment frame: carries paymentSuccess. (true → settled, false → failed.)
+    if (typeof inner.paymentSuccess === 'boolean') return inner.paymentSuccess ? 'success' : 'failed';
+    // Verification frame: real key is `qrVerified`; accept doc variants too.
+    if (inner.qrVerified || inner.QRVerified || inner[' QRVerified']) return 'verified';
     return null;
   } catch {
     return null;
