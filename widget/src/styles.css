@@ -227,19 +227,36 @@ html, body, #root {
   align-items: center;
   gap: 12px;
   padding: 32px 16px;
+  /* Don't let the result snap in — fade/rise the whole block on mount, so
+     moving from "waiting"/"confirm in your app" to the outcome reads as a
+     deliberate transition. */
+  animation: fp-rise .28s ease both;
 }
 
 .fp-status-icon {
+  position: relative;
   width: 56px; height: 56px;
   border-radius: 50%;
   display: grid; place-items: center;
   font-size: 30px;
   color: white;
+  /* Pop the ✓ / ! in (only the result screens render this icon — the pending
+     state shows the spinner instead, so this never touches the spinner). */
+  animation: fp-pop .42s cubic-bezier(.2, .9, .3, 1.35) both;
 }
 
 .fp-status-icon.settled { background: var(--green); }
 .fp-status-icon.failed  { background: var(--red); }
 .fp-status-icon.pending { background: var(--amber); }
+
+/* One-shot expanding ring on success — a small celebratory beat. */
+.fp-status-icon.settled::after {
+  content: '';
+  position: absolute; inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--green);
+  animation: fp-ring .6s ease-out .12s both;
+}
 
 .fp-status-title {
   font-size: 20px;
@@ -264,6 +281,28 @@ html, body, #root {
 
 @keyframes fp-spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes fp-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes fp-pop {
+  0%   { opacity: 0; transform: scale(.4); }
+  60%  { opacity: 1; transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes fp-ring {
+  from { opacity: .55; transform: scale(.8); }
+  to   { opacity: 0;   transform: scale(1.6); }
+}
+
+/* Respect reduced-motion: keep the result visible, skip the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .fp-status, .fp-status-icon { animation: none; }
+  .fp-status-icon.settled::after { display: none; }
 }
 
 .fp-error {

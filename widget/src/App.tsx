@@ -31,7 +31,11 @@ export interface BootConfig {
 type State =
   | { phase: 'method-select' }
   | { phase: 'initiating'; gateway: Gateway }
-  | { phase: 'awaiting-payment'; txn: TransactionResponse }
+  // `scanned` flips true on the socket's QR-verification message: the shopper
+  // has scanned the QR / opened their bank app and now needs to approve. We
+  // swap the QR/bank UI for a "confirm in your app" spinner so there's
+  // immediate feedback instead of a static "waiting" screen.
+  | { phase: 'awaiting-payment'; txn: TransactionResponse; scanned?: boolean }
   | { phase: 'settled';  txn: TransactionResponse }
   | { phase: 'failed';   txn?: TransactionResponse; message: string }
   | { phase: 'expired';  txn: TransactionResponse };
@@ -39,6 +43,7 @@ type State =
 type Action =
   | { type: 'choose-method'; gateway: Gateway }
   | { type: 'initiated';     txn: TransactionResponse }
+  | { type: 'qr-verified' }
   | { type: 'polled';        txn: TransactionResponse }
   | { type: 'errored';       message: string; txn?: TransactionResponse }
   | { type: 'cancel-back-to-methods' };
@@ -49,6 +54,9 @@ function reducer(state: State, action: Action): State {
       return { phase: 'initiating', gateway: action.gateway };
     case 'initiated':
       return { phase: 'awaiting-payment', txn: action.txn };
+    case 'qr-verified':
+      // Only meaningful while still awaiting payment; ignore once terminal.
+      return state.phase === 'awaiting-payment' ? { ...state, scanned: true } : state;
     case 'polled': {
       const status: TxnStatus = action.txn.status;
       if (status === 'SETTLED')               return { phase: 'settled',  txn: action.txn };
@@ -205,9 +213,11 @@ export function App({ engineBaseUrl, publishableKey, session, gateway }: BootCon
     try {
       ws = new WebSocket(url);
       ws.onmessage = (e) => {
-        if (parseFonepaySocketMessage(e.data) === 'payment') verifyNow();
-        // 'verified' (QR scanned, not yet paid) — keep the waiting UI; the
-        // payment message follows once the shopper approves in their app.
+        const kind = parseFonepaySocketMessage(e.data);
+        // QR scanned / bank app opened, payment not yet approved → show the
+        // "confirm in your app" step. Payment approved/declined → verify.
+        if (kind === 'verified') dispatch({ type: 'qr-verified' });
+        else if (kind === 'payment') verifyNow();
       };
       // onerror / onclose: silently fall back to polling, which is still live.
     } catch { /* WebSocket unsupported or a bad URL — polling covers us. */ }
@@ -243,6 +253,12 @@ function render(
     case 'initiating':
       return <StatusScreen kind="pending" title="Starting payment…" sub={`Routing to ${state.gateway}`} />;
     case 'awaiting-payment': {
+      // The socket told us the QR was scanned / bank app opened. Drop the QR or
+      // bank list and show a "confirm in your app" spinner until the payment
+      // result arrives — immediate feedback the moment they scan.
+      if (state.scanned) {
+        return <StatusScreen kind="pending" title="Confirm in your app" sub="Approve the payment in your banking app to finish." />;
+      }
       // Mobile + bank intents → BankPicker (per Fonepay's real flow: each bank
       // has its own intent scheme, user picks the one whose app they have).
       if (state.txn.device === 'MOBILE' && (state.txn.intents?.length ?? 0) > 0) {
