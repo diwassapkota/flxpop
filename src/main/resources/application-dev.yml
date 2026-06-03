@@ -17,7 +17,13 @@ flexpop:
       private-key-base64-pkcs8: ${FONEPAY_PRIVATE_KEY_B64:}
       base-url: ${FONEPAY_BASE_URL:https://dev-external-gateway-new.fonepay.com/merchantThirdparty}
       webhook-secret: ${FONEPAY_WEBHOOK_SECRET:dev-fonepay-webhook-secret}
-      poll-interval-ms: ${FONEPAY_POLL_INTERVAL_MS:5000}
+      # Status-API polling is OFF for now: thirdPartyDynamicQrGetStatus returns
+      # 409 "Unauthorized request" for this merchant (not yet entitled), so every
+      # poll was a wasted 409. The widget settles from the real-time payment
+      # websocket instead. Re-enable (set both back to ~5000) once Fonepay
+      # enables the status API, or replace with a webhook.
+      poll-interval-ms: ${FONEPAY_POLL_INTERVAL_MS:86400000}
+      poll-initial-delay-ms: ${FONEPAY_POLL_INITIAL_DELAY_MS:86400000}
     esewa:
       # Defaults are eSewa's published UAT/sandbox values (product code EPAYTEST
       # + the public test secret) — works out of the box against rc-epay.esewa.

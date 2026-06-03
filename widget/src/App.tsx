@@ -138,9 +138,13 @@ export function App({ engineBaseUrl, publishableKey, session, gateway }: BootCon
     return () => { cancelled = true; };
   }, [state.phase === 'initiating' ? state.gateway : null, client, session.session_id]);
 
-  // Poll for status while awaiting payment.
+  // Poll for status while awaiting payment — the fallback for gateways without a
+  // real-time socket (e.g. eSewa). When a Fonepay payment socket is present we
+  // rely on it exclusively (the socket effect below settles the result), so we
+  // skip polling: the engine can't confirm Fonepay via the status API anyway.
   useEffect(() => {
     if (state.phase !== 'awaiting-payment') return;
+    if (state.txn.websocket_url) return;
     const txnId = state.txn.txn_id;
 
     let stopped = false;
