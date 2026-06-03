@@ -70,6 +70,9 @@ public class TransactionEntity {
     @Column(name = "qr_payload", columnDefinition = "TEXT")
     private String qrPayload;
 
+    @Column(name = "websocket_url", length = 512)
+    private String websocketUrl;
+
     @Column(name = "expires_at")
     private Instant expiresAt;
 
@@ -118,6 +121,8 @@ public class TransactionEntity {
     public void setAppIntentUrl(String appIntentUrl) { this.appIntentUrl = appIntentUrl; }
     public String getQrPayload() { return qrPayload; }
     public void setQrPayload(String qrPayload) { this.qrPayload = qrPayload; }
+    public String getWebsocketUrl() { return websocketUrl; }
+    public void setWebsocketUrl(String websocketUrl) { this.websocketUrl = websocketUrl; }
     public Instant getExpiresAt() { return expiresAt; }
     public void setExpiresAt(Instant expiresAt) { this.expiresAt = expiresAt; }
     public Instant getSettledAt() { return settledAt; }

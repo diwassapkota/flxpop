@@ -175,10 +175,16 @@ async function bootLocal(method: LocalMethod) {
     publishableKey: PUBLISHABLE_KEY,
     session,
     gateway: GATEWAY[method], // ← skip the picker, go straight to this wallet
-    onInitiated: (e: Record<string, unknown>) => logEvent(`→ initiated  txn_id=${e.txn_id} status=${e.status}`),
-    onSettled:   (e: Record<string, unknown>) => logEvent(`✓ SETTLED    txn_id=${e.txn_id}`),
-    onFailed:    (e: Record<string, unknown>) => logEvent(`✗ FAILED     txn_id=${e.txn_id}`),
-    onExpired:   (e: Record<string, unknown>) => logEvent(`! EXPIRED    txn_id=${e.txn_id}`),
+    onInitiated: (e: Record<string, unknown>) => {
+      logEvent(`→ initiated  txn_id=${e.txn_id} status=${e.status}`);
+      // Fonepay intent (mobile) deep-links into the bank app, which can evict +
+      // reload this tab. Persist the pending txn so we can recover the result on
+      // return even if the page (and the widget's own socket) was torn down.
+      if (method === 'fonepay' && typeof e.txn_id === 'string') setPending(e.txn_id);
+    },
+    onSettled:   (e: Record<string, unknown>) => { logEvent(`✓ SETTLED    txn_id=${e.txn_id}`); clearPending(); },
+    onFailed:    (e: Record<string, unknown>) => { logEvent(`✗ FAILED     txn_id=${e.txn_id}`); clearPending(); },
+    onExpired:   (e: Record<string, unknown>) => { logEvent(`! EXPIRED    txn_id=${e.txn_id}`); clearPending(); },
   });
 
   bootedMethod = method;
@@ -223,6 +229,72 @@ function showReturn(kind: 'ok' | 'bad' | 'wait', title: string, msg: string, ref
 
   el.append(mark, body);
   (el as HTMLElement).hidden = false;
+}
+
+// ---- Fonepay intent return recovery -------------------------------------
+// The mobile intent flow deep-links into the bank app; on some phones that
+// evicts and reloads this tab, tearing down the widget (and its socket) before
+// the result lands. We persist the pending txn on initiate and, on the next
+// load, re-read it from the engine — which settles authoritatively from its own
+// server-side Fonepay socket — and surface the outcome via the return banner.
+const PENDING_KEY = 'flxpop_pending_fonepay';
+
+function setPending(txnId: string) {
+  try { localStorage.setItem(PENDING_KEY, JSON.stringify({ txn_id: txnId, ts: Date.now() })); } catch { /* */ }
+}
+function clearPending() {
+  try { localStorage.removeItem(PENDING_KEY); } catch { /* */ }
+}
+
+async function resumeFonepayReturn() {
+  // Skip if this load is actually an eSewa redirect return (handled elsewhere).
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('flxpop_txn')) return;
+
+  let pending: { txn_id?: string; ts?: number } | null = null;
+  try { pending = JSON.parse(localStorage.getItem(PENDING_KEY) || 'null'); } catch { pending = null; }
+  const txnId = pending?.txn_id;
+  if (!txnId) return;
+  // Drop stale pendings (>15 min) so an old abandoned payment can't pop a banner.
+  if (pending?.ts && Date.now() - pending.ts > 15 * 60_000) { clearPending(); return; }
+
+  selectMethod('fonepay');
+  const teaser = $<HTMLElement>('#fp-teaser'); if (teaser) teaser.style.display = 'none';
+  const btn = $<HTMLButtonElement>('#aa-continue'); if (btn) btn.style.display = 'none';
+  showReturn('wait', 'Checking your payment…',
+    'Confirming the result of your last payment — one moment.', txnId);
+
+  // The engine settles via its server-side socket within a few seconds of
+  // approval; poll briefly to catch it.
+  for (let i = 0; i < 12; i++) {
+    let status = '';
+    try {
+      const res = await fetch(`${ENGINE_BASE_URL}/v1/transactions/${txnId}`, {
+        headers: { Authorization: `Bearer ${PUBLISHABLE_KEY}` },
+      });
+      if (res.ok) status = String((await res.json()).status ?? '').toUpperCase();
+    } catch { /* transient — retry */ }
+
+    if (status === 'SETTLED') {
+      showReturn('ok', 'Payment complete',
+        'Your Fonepay payment was received and confirmed by FlxPop.', txnId);
+      const label = $('#continue-label');
+      if (btn) { btn.style.display = ''; btn.disabled = true; btn.style.background = '#16A34A'; btn.style.boxShadow = 'none'; }
+      if (label) label.textContent = 'Paid with Fonepay ✓';
+      clearPending();
+      return;
+    }
+    if (status === 'FAILED' || status === 'EXPIRED') {
+      showReturn('bad', 'Payment not completed',
+        'Your Fonepay payment didn’t go through. Pick a method and try again.', txnId);
+      if (btn) btn.style.display = '';
+      clearPending();
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  // Still pending after ~24s — leave the wait banner, restore the button to retry.
+  if (btn) btn.style.display = '';
 }
 
 // eSewa's signed callback 302s the shopper back here with the outcome. Show it,
@@ -283,6 +355,7 @@ function wire() {
 
   selectMethod('fonepay'); // Nepal → lead with Fonepay, the dominant local wallet
   handleEsewaReturn();      // if we're returning from eSewa, show the outcome
+  resumeFonepayReturn();    // if we reloaded after a Fonepay intent, recover it
 }
 
 if (document.readyState === 'loading') {

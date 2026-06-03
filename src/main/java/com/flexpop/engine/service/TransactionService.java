@@ -153,6 +153,7 @@ public class TransactionService {
         saved.setGatewayRef(initiate.gatewayRef());
         saved.setAppIntentUrl(initiate.appIntentUrl());
         saved.setQrPayload(initiate.qrPayload());
+        saved.setWebsocketUrl(initiate.websocketUrl());
         saved.setExpiresAt(initiate.expiresAt());
         saved.setStatus(TxnStatus.ROUTED);
         TransactionEntity routed = txnRepo.save(saved);
@@ -206,7 +207,7 @@ public class TransactionService {
                 .toList();
 
         List<TransactionResponse.BankIntent> intents = buildIntents(t);
-        String websocketUrl = websocketUrl(t, events);
+        String websocketUrl = websocketUrl(t);
 
         return new TransactionResponse(
                 t.getPublicId(),
@@ -250,23 +251,15 @@ public class TransactionService {
     /**
      * The Fonepay real-time payment socket for a transaction that's still
      * awaiting payment. Per the Intent doc (§5.1, §9.5) this socket drives BOTH
-     * the desktop QR scan-to-pay flow and the mobile bank-intent flow — the web
-     * client opens it and, on the payment message, verifies + shows success. So
-     * it's surfaced for every non-terminal Fonepay txn regardless of device.
-     * Pulled back from the persisted {@code txn.routed} event (so it survives
-     * across GET polls without a dedicated column). Null for non-Fonepay or
-     * terminal transactions; the engine's status poll remains authoritative.
+     * the desktop QR scan-to-pay flow and the mobile bank-intent flow. Surfaced
+     * for every non-terminal Fonepay txn (the widget opens it for instant
+     * feedback; the engine also opens it server-side via FonepaySocketManager to
+     * settle authoritatively). Null for non-Fonepay or terminal transactions.
      */
-    private String websocketUrl(TransactionEntity t, List<TransactionEventEntity> events) {
+    private String websocketUrl(TransactionEntity t) {
         if (t.getGateway() != Gateway.FONEPAY) return null;
         if (t.getStatus().isTerminal()) return null;
-        return events.stream()
-                .filter(e -> "txn.routed".equals(e.getType()))
-                .map(TransactionEventEntity::getPayload)
-                .filter(p -> p != null && p.get("websocket_url") != null)
-                .map(p -> String.valueOf(p.get("websocket_url")))
-                .reduce((first, second) -> second) // last routed event wins
-                .orElse(null);
+        return t.getWebsocketUrl();
     }
 
     private List<TransactionResponse.BankIntent> buildIntents(TransactionEntity t) {
