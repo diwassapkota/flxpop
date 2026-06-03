@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -15,6 +16,7 @@ import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.function.Supplier;
 
 /**
  * Real Fonepay Intent API adapter (replaces the FP-SPEC-001 PHASE 1 stub).
@@ -44,12 +46,36 @@ public class FonepayAdapter implements GatewayAdapter {
 
     private final RestClient http;
     private final FonepayProperties props;
+    private final FonepayTokenCache tokenCache;
     private final SecureRandom rng = new SecureRandom();
 
     public FonepayAdapter(@Qualifier("fonepayAuthedClient") RestClient http,
-                          FonepayProperties props) {
+                          FonepayProperties props,
+                          FonepayTokenCache tokenCache) {
         this.http = http;
         this.props = props;
+        this.tokenCache = tokenCache;
+    }
+
+    /**
+     * Runs an authed Fonepay call, recovering from a stale Bearer token.
+     *
+     * <p>The cached token is good for ~1h, but Fonepay's sandbox effectively
+     * allows a single active session per merchant: any other login with the
+     * same credentials (a smoke test, Postman, a second engine) silently
+     * revokes our token, and the cache has no way to know until a call comes
+     * back {@code 401}. When that happens we drop the token, force a fresh
+     * login, and retry exactly once. A second {@code 401} is a genuine auth
+     * failure (bad creds / bad signature) and is allowed to propagate.
+     */
+    private <T> T withFreshAuthOn401(Supplier<T> call) {
+        try {
+            return call.get();
+        } catch (HttpClientErrorException.Unauthorized e) {
+            log.info("Fonepay returned 401 — refreshing the Bearer token and retrying once");
+            tokenCache.invalidate();
+            return call.get();
+        }
     }
 
     @Override
@@ -76,12 +102,12 @@ public class FonepayAdapter implements GatewayAdapter {
                 "INTENT_QR");
 
         try {
-            IntentQrResponse res = http.post()
+            IntentQrResponse res = withFreshAuthOn401(() -> http.post()
                     .uri(INTENT_QR_PATH)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
-                    .body(IntentQrResponse.class);
+                    .body(IntentQrResponse.class));
             if (res == null || res.qrString() == null) {
                 throw new IllegalStateException("Fonepay /generate-intent-qr returned no qrString");
             }
@@ -90,6 +116,7 @@ public class FonepayAdapter implements GatewayAdapter {
                     prn,
                     null,             // appIntentUrl: derived at response-render time per bank
                     res.qrString(),   // qrPayload: same for mobile AND desktop
+                    res.websocketId(),// real-time payment-notification socket (wss://ws.fonepay.com/…)
                     Instant.now().plus(INTENT_TTL));
         } catch (RestClientException e) {
             throw new IllegalStateException(
@@ -101,12 +128,12 @@ public class FonepayAdapter implements GatewayAdapter {
     public StatusResult queryStatus(String gatewayRef) {
         StatusQueryRequest body = new StatusQueryRequest(props.terminalId(), gatewayRef);
         try {
-            StatusQueryResponse res = http.post()
+            StatusQueryResponse res = withFreshAuthOn401(() -> http.post()
                     .uri(STATUS_PATH)
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
-                    .body(StatusQueryResponse.class);
+                    .body(StatusQueryResponse.class));
             return mapStatus(gatewayRef, res);
         } catch (RestClientException e) {
             // Don't escalate — the poller treats a transient failure as "still PENDING"

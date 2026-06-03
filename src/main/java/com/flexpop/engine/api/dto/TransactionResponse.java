@@ -27,6 +27,10 @@ public record TransactionResponse(
         @JsonProperty("gateway_ref") String gatewayRef,
         @JsonProperty("app_intent_url") String appIntentUrl,
         @JsonProperty("qr_payload") String qrPayload,
+        // Real-time Fonepay payment socket (mobile, while awaiting payment). The
+        // widget opens it for instant notification; the engine's status poll
+        // stays the source of truth. Null otherwise.
+        @JsonProperty("websocket_url") String websocketUrl,
         @JsonProperty("expires_at") Instant expiresAt,
         @JsonProperty("settled_at") Instant settledAt,
         @JsonProperty("failure_code") String failureCode,

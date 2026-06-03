@@ -161,6 +161,7 @@ public class TransactionService {
         routedPayload.put("gateway_ref", initiate.gatewayRef());
         routedPayload.put("app_intent_url", initiate.appIntentUrl());
         routedPayload.put("qr_payload", initiate.qrPayload());
+        routedPayload.put("websocket_url", initiate.websocketUrl());
         routedPayload.put("expires_at", initiate.expiresAt() == null ? null : initiate.expiresAt().toString());
         eventLog.append(routed.getId(), "txn.routed", TransactionEventLog.Source.ENGINE, routedPayload);
 
@@ -205,6 +206,7 @@ public class TransactionService {
                 .toList();
 
         List<TransactionResponse.BankIntent> intents = buildIntents(t);
+        String websocketUrl = websocketUrl(t, events);
 
         return new TransactionResponse(
                 t.getPublicId(),
@@ -218,6 +220,7 @@ public class TransactionService {
                 t.getGatewayRef(),
                 t.getAppIntentUrl(),
                 t.getQrPayload(),
+                websocketUrl,
                 t.getExpiresAt(),
                 t.getSettledAt(),
                 t.getFailureCode(),
@@ -244,13 +247,41 @@ public class TransactionService {
      *       to its QR fallback in that case.</li>
      * </ul>
      */
+    /**
+     * The Fonepay real-time payment socket for a mobile transaction that's still
+     * awaiting payment. Pulled back from the persisted {@code txn.routed} event
+     * (so it survives across GET polls without a dedicated column). Null for
+     * desktop, non-Fonepay, or terminal transactions — the widget only needs it
+     * while it's waiting, and the engine's status poll remains authoritative.
+     */
+    private String websocketUrl(TransactionEntity t, List<TransactionEventEntity> events) {
+        if (t.getDevice() != Device.MOBILE) return null;
+        if (t.getGateway() != Gateway.FONEPAY) return null;
+        if (t.getStatus().isTerminal()) return null;
+        return events.stream()
+                .filter(e -> "txn.routed".equals(e.getType()))
+                .map(TransactionEventEntity::getPayload)
+                .filter(p -> p != null && p.get("websocket_url") != null)
+                .map(p -> String.valueOf(p.get("websocket_url")))
+                .reduce((first, second) -> second) // last routed event wins
+                .orElse(null);
+    }
+
     private List<TransactionResponse.BankIntent> buildIntents(TransactionEntity t) {
         if (t.getDevice() != Device.MOBILE) return null;
         if (t.getGateway() != Gateway.FONEPAY) return null;
         if (t.getQrPayload() == null || t.getQrPayload().isBlank()) return null;
         if (t.getStatus().isTerminal()) return null;
 
-        String encodedPayload = URLEncoder.encode(t.getQrPayload(), StandardCharsets.UTF_8);
+        // RFC 3986 query encoding. URLEncoder is form-encoding (space -> '+'),
+        // but Fonepay's qrPayload ends in a CRC computed over the EXACT EMVCo
+        // string, and real merchant names carry spaces (e.g. "Diwas Kumar").
+        // A '+' breaks the bank app's CRC check (and iOS URLComponents does NOT
+        // turn '+' back into a space), so the deep link is rejected. Emitting
+        // '%20' instead round-trips to a real space on both Android and iOS, so
+        // the bank receives the byte-exact payload the doc (§7.1) expects.
+        String encodedPayload = URLEncoder.encode(t.getQrPayload(), StandardCharsets.UTF_8)
+                .replace("+", "%20");
         return fonepayBankCatalog.banks().stream()
                 .map(b -> new TransactionResponse.BankIntent(
                         b.name(),

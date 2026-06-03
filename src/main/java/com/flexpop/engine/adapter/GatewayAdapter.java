@@ -46,6 +46,10 @@ public interface GatewayAdapter {
             String gatewayRef,
             String appIntentUrl,
             String qrPayload,
+            // Real-time payment-notification socket (Fonepay returns one per QR);
+            // null for gateways that don't provide one. Surfaced to the widget so
+            // the browser can listen for the result instead of only polling.
+            String websocketUrl,
             Instant expiresAt
     ) { }
 

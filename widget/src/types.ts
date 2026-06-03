@@ -33,6 +33,9 @@ export interface TransactionResponse {
   gateway_ref?: string | null;
   app_intent_url?: string | null;
   qr_payload?: string | null;
+  // Real-time Fonepay payment socket (mobile, while awaiting payment). The
+  // widget opens it to learn the result instantly instead of waiting on a poll.
+  websocket_url?: string | null;
   expires_at?: string | null;
   settled_at?: string | null;
   failure_code?: string | null;
